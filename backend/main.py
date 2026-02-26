@@ -129,6 +129,25 @@ def _save_vibetube_state_png(input_path: Path, output_path: Path, max_size: int 
         img.save(output_path, format="PNG", optimize=True)
 
 
+def _extract_caption_preview(captions_path: Path, max_chars: int = 120) -> Optional[str]:
+    """Extract a short readable preview line from an SRT caption file."""
+    if not captions_path.exists():
+        return None
+    try:
+        for raw in captions_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            if line.isdigit():
+                continue
+            if "-->" in line:
+                continue
+            return line[:max_chars]
+    except Exception:
+        return None
+    return None
+
+
 # ============================================
 # ROOT & HEALTH ENDPOINTS
 # ============================================
@@ -1012,6 +1031,27 @@ async def vibetube_render(
             text=source_text,
         )
 
+        source_profile_name: Optional[str] = None
+        if avatar_profile_id:
+            profile = db.query(DBVoiceProfile).filter_by(id=avatar_profile_id).first()
+            if profile:
+                source_profile_name = profile.name
+
+        meta_path = Path(render_result["meta_path"])
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+        meta.update(
+            {
+                "source_generation_id": source_generation_id,
+                "source_profile_id": avatar_profile_id,
+                "source_profile_name": source_profile_name,
+                "source_text_preview": (source_text or "").strip(),
+            }
+        )
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
         return models.VibeTubeRenderResponse(
             job_id=job_id,
             output_dir=str(base_out.resolve()),
@@ -1064,7 +1104,7 @@ async def vibetube_export_mp4(job_id: str):
 
 
 @app.get("/vibetube/jobs", response_model=List[models.VibeTubeJobResponse])
-async def list_vibetube_jobs():
+async def list_vibetube_jobs(db: Session = Depends(get_db)):
     """List all rendered VibeTube jobs."""
     jobs_root = config.get_data_dir() / "vibetube"
     if not jobs_root.exists():
@@ -1079,13 +1119,49 @@ async def list_vibetube_jobs():
         created_ts = datetime.fromtimestamp(job_dir.stat().st_mtime)
         duration_sec: Optional[float] = None
         video_path: Optional[str] = None
+        source_generation_id: Optional[str] = None
+        source_profile_name: Optional[str] = None
+        source_text_preview: Optional[str] = None
 
         if meta_path.exists():
             try:
                 meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 duration_sec = float(meta.get("duration_sec")) if meta.get("duration_sec") is not None else None
+                source_generation_id = meta.get("source_generation_id")
+                source_profile_name = meta.get("source_profile_name")
+                source_text_preview = meta.get("source_text_preview")
             except Exception:
                 duration_sec = None
+
+        # Backfill metadata for older jobs that don't have source fields in meta.json.
+        if source_generation_id is None and meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                audio_name = str(meta.get("audio") or "").strip()
+                if audio_name.lower().endswith(".wav"):
+                    source_generation_id = Path(audio_name).stem
+            except Exception:
+                pass
+
+        if source_generation_id and (not source_profile_name or not source_text_preview):
+            generation = db.query(DBGeneration).filter_by(id=source_generation_id).first()
+            if generation:
+                if not source_text_preview:
+                    source_text_preview = generation.text
+                if not source_profile_name:
+                    profile = db.query(DBVoiceProfile).filter_by(id=generation.profile_id).first()
+                    if profile:
+                        source_profile_name = profile.name
+
+        # Last-resort text preview fallback for old jobs: read first subtitle line from captions.srt.
+        if not source_text_preview and meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                captions_name = str(meta.get("captions") or "").strip()
+                if captions_name:
+                    source_text_preview = _extract_caption_preview(job_dir / captions_name)
+            except Exception:
+                pass
 
         webm_path = job_dir / "avatar.webm"
         if webm_path.exists():
@@ -1097,6 +1173,9 @@ async def list_vibetube_jobs():
                 created_at=created_ts,
                 duration_sec=duration_sec,
                 video_path=video_path,
+                source_generation_id=source_generation_id,
+                source_profile_name=source_profile_name,
+                source_text_preview=source_text_preview,
             )
         )
 

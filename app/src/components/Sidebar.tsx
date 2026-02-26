@@ -12,12 +12,12 @@ interface SidebarProps {
 
 const tabs = [
   { id: 'main', path: '/', icon: Volume2, label: 'Generate' },
+  { id: 'vibetube', path: '/vibetube', icon: Clapperboard, label: 'VibeTube' },
   { id: 'stories', path: '/stories', icon: BookOpen, label: 'Stories' },
   { id: 'voices', path: '/voices', icon: Mic, label: 'Voices' },
   { id: 'audio', path: '/audio', icon: Speaker, label: 'Audio' },
   { id: 'models', path: '/models', icon: Box, label: 'Models' },
   { id: 'server', path: '/server', icon: Server, label: 'Server' },
-  { id: 'vibetube', path: '/vibetube', icon: Clapperboard, label: 'VibeTube' },
 ];
 
 export function Sidebar({ isMacOS }: SidebarProps) {

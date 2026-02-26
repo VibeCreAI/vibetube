@@ -103,6 +103,9 @@ class VibeTubeJobResponse(BaseModel):
     created_at: datetime
     duration_sec: Optional[float] = None
     video_path: Optional[str] = None
+    source_generation_id: Optional[str] = None
+    source_profile_name: Optional[str] = None
+    source_text_preview: Optional[str] = None
 
 
 class HistoryQuery(BaseModel):

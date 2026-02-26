@@ -4,6 +4,7 @@ import {
   Download,
   Eye,
   Film,
+  Info,
   Loader2,
   Save,
   Sparkles,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -124,19 +126,19 @@ export function VibeTubeTab() {
   const [generationId, setGenerationId] = useState('');
   const [text, setText] = useState('');
 
-  const [fps, setFps] = useState(30);
-  const [width, setWidth] = useState(512);
-  const [height, setHeight] = useState(512);
-  const [onThreshold, setOnThreshold] = useState(0.024);
-  const [offThreshold, setOffThreshold] = useState(0.016);
-  const [smoothingWindows, setSmoothingWindows] = useState(3);
-  const [minHoldWindows, setMinHoldWindows] = useState(1);
-  const [blinkMinIntervalSec, setBlinkMinIntervalSec] = useState(3.5);
-  const [blinkMaxIntervalSec, setBlinkMaxIntervalSec] = useState(5.5);
-  const [blinkDurationFrames, setBlinkDurationFrames] = useState(3);
-  const [headMotionAmountPx, setHeadMotionAmountPx] = useState(3.0);
-  const [headMotionChangeSec, setHeadMotionChangeSec] = useState(2.8);
-  const [headMotionSmoothness, setHeadMotionSmoothness] = useState(0.04);
+  const [fps, setFps] = usePersistedNumber('vibetube.settings.fps', 30);
+  const [width, setWidth] = usePersistedNumber('vibetube.settings.width', 512);
+  const [height, setHeight] = usePersistedNumber('vibetube.settings.height', 512);
+  const [onThreshold, setOnThreshold] = usePersistedNumber('vibetube.settings.onThreshold', 0.024);
+  const [offThreshold, setOffThreshold] = usePersistedNumber('vibetube.settings.offThreshold', 0.016);
+  const [smoothingWindows, setSmoothingWindows] = usePersistedNumber('vibetube.settings.smoothingWindows', 3);
+  const [minHoldWindows, setMinHoldWindows] = usePersistedNumber('vibetube.settings.minHoldWindows', 1);
+  const [blinkMinIntervalSec, setBlinkMinIntervalSec] = usePersistedNumber('vibetube.settings.blinkMinIntervalSec', 3.5);
+  const [blinkMaxIntervalSec, setBlinkMaxIntervalSec] = usePersistedNumber('vibetube.settings.blinkMaxIntervalSec', 5.5);
+  const [blinkDurationFrames, setBlinkDurationFrames] = usePersistedNumber('vibetube.settings.blinkDurationFrames', 3);
+  const [headMotionAmountPx, setHeadMotionAmountPx] = usePersistedNumber('vibetube.settings.headMotionAmountPx', 3.0);
+  const [headMotionChangeSec, setHeadMotionChangeSec] = usePersistedNumber('vibetube.settings.headMotionChangeSec', 2.8);
+  const [headMotionSmoothness, setHeadMotionSmoothness] = usePersistedNumber('vibetube.settings.headMotionSmoothness', 0.04);
 
   const [avatarFiles, setAvatarFiles] = useState<AvatarFiles>({
     idle: null,
@@ -154,7 +156,9 @@ export function VibeTubeTab() {
   const [hasSavedPack, setHasSavedPack] = useState(false);
   const [isPackLoading, setIsPackLoading] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
   const [result, setResult] = useState<VibeTubeRenderResponse | null>(null);
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
 
   const deleteJobMutation = useMutation({
     mutationFn: (jobId: string) => apiClient.deleteVibeTubeJob(jobId),
@@ -203,6 +207,19 @@ export function VibeTubeTab() {
     if (!profileId) return items;
     return items.filter((item) => item.profile_id === profileId);
   }, [historyData?.items, profileId]);
+
+  useEffect(() => {
+    const currentIds = new Set((jobsQuery.data ?? []).map((job) => job.job_id));
+    setSelectedJobIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (currentIds.has(id)) {
+          next.add(id);
+        }
+      });
+      return next;
+    });
+  }, [jobsQuery.data]);
 
   useEffect(() => {
     if (!historyItems.length) {
@@ -398,6 +415,76 @@ export function VibeTubeTab() {
     });
   };
 
+  const toggleJobSelection = (jobId: string, checked: boolean) => {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(jobId);
+      } else {
+        next.delete(jobId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllJobs = (checked: boolean) => {
+    if (!jobsQuery.data?.length) {
+      setSelectedJobIds(new Set());
+      return;
+    }
+    if (!checked) {
+      setSelectedJobIds(new Set());
+      return;
+    }
+    setSelectedJobIds(new Set(jobsQuery.data.map((job) => job.job_id)));
+  };
+
+  const onDeleteSelectedJobs = async () => {
+    if (!selectedJobIds.size) {
+      return;
+    }
+    const confirmed = await confirm(
+      `Delete ${selectedJobIds.size} selected VibeTube render(s)? This removes all files for those renders.`,
+    );
+    if (!confirmed) return;
+
+    setIsBatchDeleting(true);
+    try {
+      const ids = Array.from(selectedJobIds);
+      const results = await Promise.allSettled(ids.map((jobId) => apiClient.deleteVibeTubeJob(jobId)));
+      const deletedCount = results.filter((result) => result.status === 'fulfilled').length;
+      const failedCount = results.length - deletedCount;
+
+      if (result && selectedJobIds.has(result.job_id)) {
+        setResult(null);
+      }
+
+      setSelectedJobIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['vibetube-jobs'] });
+
+      if (failedCount === 0) {
+        toast({
+          title: 'Renders deleted',
+          description: `Deleted ${deletedCount} render(s).`,
+        });
+      } else {
+        toast({
+          title: 'Partial delete',
+          description: `Deleted ${deletedCount}, failed ${failedCount}.`,
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Batch delete failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
+
   const onExportMp4 = async (jobId: string) => {
     try {
       const blob = await apiClient.exportVibeTubeMp4(jobId);
@@ -421,6 +508,8 @@ export function VibeTubeTab() {
   };
 
   const previewUrl = result ? apiClient.getVibeTubePreviewUrl(result.job_id) : null;
+  const jobs = jobsQuery.data ?? [];
+  const allJobsSelected = jobs.length > 0 && jobs.every((job) => selectedJobIds.has(job.job_id));
 
   return (
     <div className="h-full min-h-0 overflow-y-auto xl:overflow-hidden">
@@ -579,11 +668,33 @@ export function VibeTubeTab() {
           <section className="rounded-xl border bg-card/40 p-4 space-y-4">
             <h3 className="text-base font-semibold">Render Settings</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <NumberField label="FPS" value={fps} min={10} max={60} onChange={setFps} />
-              <NumberField label="Width" value={width} min={128} max={2048} onChange={setWidth} />
-              <NumberField label="Height" value={height} min={128} max={2048} onChange={setHeight} />
+              <NumberField
+                label="FPS"
+                description="Frames per second. Higher looks smoother but increases render work."
+                value={fps}
+                min={10}
+                max={60}
+                onChange={setFps}
+              />
+              <NumberField
+                label="Width"
+                description="Output video width in pixels."
+                value={width}
+                min={128}
+                max={2048}
+                onChange={setWidth}
+              />
+              <NumberField
+                label="Height"
+                description="Output video height in pixels."
+                value={height}
+                min={128}
+                max={2048}
+                onChange={setHeight}
+              />
               <NumberField
                 label="Smoothing"
+                description="Moving-average window for mouth detection. Higher = steadier, slower mouth transitions."
                 value={smoothingWindows}
                 min={1}
                 max={20}
@@ -591,6 +702,7 @@ export function VibeTubeTab() {
               />
               <NumberField
                 label="Min Hold"
+                description="Minimum consecutive analysis windows required before state changes."
                 value={minHoldWindows}
                 min={1}
                 max={20}
@@ -598,6 +710,7 @@ export function VibeTubeTab() {
               />
               <NumberField
                 label="Blink Frames"
+                description="How many video frames each blink remains closed."
                 value={blinkDurationFrames}
                 min={1}
                 max={12}
@@ -605,6 +718,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Talk ON"
+                description="RMS threshold to switch mouth from idle to talking. Lower = more sensitive."
                 value={onThreshold}
                 min={0.001}
                 max={0.5}
@@ -613,6 +727,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Talk OFF"
+                description="RMS threshold to switch mouth from talking back to idle."
                 value={offThreshold}
                 min={0.001}
                 max={0.5}
@@ -621,6 +736,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Blink Min (s)"
+                description="Minimum seconds between blinks."
                 value={blinkMinIntervalSec}
                 min={0.2}
                 max={20}
@@ -629,6 +745,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Blink Max (s)"
+                description="Maximum seconds between blinks."
                 value={blinkMaxIntervalSec}
                 min={0.2}
                 max={20}
@@ -637,6 +754,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Head Move (px)"
+                description="Maximum random head drift in pixels."
                 value={headMotionAmountPx}
                 min={0}
                 max={24}
@@ -645,6 +763,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Head Change (s)"
+                description="How often a new head movement target is chosen."
                 value={headMotionChangeSec}
                 min={0.25}
                 max={20}
@@ -653,6 +772,7 @@ export function VibeTubeTab() {
               />
               <DecimalField
                 label="Head Smooth"
+                description="How quickly movement approaches the target. Lower = slower, smoother drift."
                 value={headMotionSmoothness}
                 min={0.001}
                 max={1}
@@ -706,26 +826,62 @@ export function VibeTubeTab() {
           </section>
 
           <section className="rounded-xl border bg-card/50 p-4 xl:flex-1 xl:min-h-0 xl:overflow-hidden">
-            <div className="flex items-center gap-2 mb-3">
-              <Clapperboard className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold">VibeTube Renders</h3>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <Clapperboard className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold">VibeTube Renders</h3>
+              </div>
+              {jobs.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <Checkbox checked={allJobsSelected} onCheckedChange={toggleSelectAllJobs} />
+                    Select all
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive"
+                    onClick={onDeleteSelectedJobs}
+                    disabled={!selectedJobIds.size || isBatchDeleting}
+                  >
+                    {isBatchDeleting ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Delete selected{selectedJobIds.size ? ` (${selectedJobIds.size})` : ''}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {jobsQuery.isLoading ? (
               <div className="py-8 xl:h-full flex items-center justify-center text-sm text-muted-foreground">Loading render history...</div>
-            ) : jobsQuery.data?.length ? (
+            ) : jobs.length ? (
               <div className="space-y-2 pr-1 xl:overflow-y-auto xl:h-full">
-                {jobsQuery.data.map((job) => {
+                {jobs.map((job) => {
                   const isActive = result?.job_id === job.job_id;
                   return (
                     <div
                       key={job.job_id}
                       className={`rounded-lg border p-3 space-y-2 ${isActive ? 'ring-1 ring-primary border-primary/60 bg-primary/5' : 'bg-background/40'}`}
                     >
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">{job.job_id.slice(0, 8)}</p>
-                        <p className="text-xs text-muted-foreground">{formatTimestamp(job.created_at)}</p>
-                        <p className="text-xs text-muted-foreground">Duration: {formatDuration(job.duration_sec)}</p>
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={selectedJobIds.has(job.job_id)}
+                          onCheckedChange={(checked) => toggleJobSelection(job.job_id, checked)}
+                        />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{job.job_id.slice(0, 8)}</p>
+                          <p className="text-xs text-muted-foreground">{formatTimestamp(job.created_at)}</p>
+                          <p className="text-xs text-muted-foreground">Duration: {formatDuration(job.duration_sec)}</p>
+                          {(job.source_profile_name || job.source_text_preview || job.source_generation_id) && (
+                            <p className="text-xs text-muted-foreground">
+                              {job.source_profile_name || 'Unknown voice'} | {formatDuration(job.duration_sec)} |{' '}
+                              {clipText(job.source_text_preview || 'No transcript preview', 54)}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
@@ -767,12 +923,14 @@ export function VibeTubeTab() {
 
 function NumberField({
   label,
+  description,
   value,
   onChange,
   min,
   max,
 }: {
   label: string;
+  description: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
@@ -780,7 +938,12 @@ function NumberField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label className="flex items-center gap-1.5">
+        <span>{label}</span>
+        <span title={description} className="inline-flex text-muted-foreground cursor-help">
+          <Info className="h-3.5 w-3.5" />
+        </span>
+      </Label>
       <Input
         type="number"
         value={value}
@@ -794,6 +957,7 @@ function NumberField({
 
 function DecimalField({
   label,
+  description,
   value,
   onChange,
   min,
@@ -801,6 +965,7 @@ function DecimalField({
   step,
 }: {
   label: string;
+  description: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
@@ -809,7 +974,12 @@ function DecimalField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label className="flex items-center gap-1.5">
+        <span>{label}</span>
+        <span title={description} className="inline-flex text-muted-foreground cursor-help">
+          <Info className="h-3.5 w-3.5" />
+        </span>
+      </Label>
       <Input
         type="number"
         value={value}
@@ -820,4 +990,24 @@ function DecimalField({
       />
     </div>
   );
+}
+
+function usePersistedNumber(storageKey: string, defaultValue: number) {
+  const [value, setValue] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return defaultValue;
+    }
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw == null) {
+      return defaultValue;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : defaultValue;
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(storageKey, String(value));
+  }, [storageKey, value]);
+
+  return [value, setValue] as const;
 }

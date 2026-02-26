@@ -253,4 +253,7 @@ export interface VibeTubeJobResponse {
   created_at: string;
   duration_sec?: number;
   video_path?: string;
+  source_generation_id?: string;
+  source_profile_name?: string;
+  source_text_preview?: string;
 }
