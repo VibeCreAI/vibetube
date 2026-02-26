@@ -24,6 +24,8 @@ import type {
   StoryItemMove,
   StoryItemTrim,
   StoryItemSplit,
+  VibeTubeRenderRequest,
+  VibeTubeRenderResponse,
 } from './types';
 
 class ApiClient {
@@ -507,6 +509,39 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  async renderVibeTube(data: VibeTubeRenderRequest): Promise<VibeTubeRenderResponse> {
+    const url = `${this.getBaseUrl()}/vibetube/render`;
+    const formData = new FormData();
+
+    if (data.profile_id) formData.append('profile_id', data.profile_id);
+    if (data.text) formData.append('text', data.text);
+    if (data.language) formData.append('language', data.language);
+    if (data.generation_id) formData.append('generation_id', data.generation_id);
+    if (data.fps !== undefined) formData.append('fps', String(data.fps));
+    if (data.width !== undefined) formData.append('width', String(data.width));
+    if (data.height !== undefined) formData.append('height', String(data.height));
+    if (data.on_threshold !== undefined) formData.append('on_threshold', String(data.on_threshold));
+    if (data.off_threshold !== undefined) formData.append('off_threshold', String(data.off_threshold));
+    if (data.smoothing_windows !== undefined) formData.append('smoothing_windows', String(data.smoothing_windows));
+    if (data.min_hold_windows !== undefined) formData.append('min_hold_windows', String(data.min_hold_windows));
+
+    formData.append('idle', data.idle);
+    formData.append('talk', data.talk);
+    if (data.idle_blink) formData.append('idle_blink', data.idle_blink);
+    if (data.talk_blink) formData.append('talk_blink', data.talk_blink);
+    if (data.blink) formData.append('blink', data.blink);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
   }
 }
 

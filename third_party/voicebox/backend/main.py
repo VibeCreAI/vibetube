@@ -41,7 +41,7 @@ def _safe_content_disposition(disposition_type: str, filename: str) -> str:
     )
 
 
-from . import database, models, profiles, history, tts, transcribe, config, export_import, channels, stories, __version__
+from . import database, models, profiles, history, tts, transcribe, config, export_import, channels, stories, vibetube, __version__
 from .database import get_db, Generation as DBGeneration, VoiceProfile as DBVoiceProfile
 from .utils.progress import get_progress_manager
 from .utils.tasks import get_task_manager
@@ -737,6 +737,108 @@ async def stream_speech(
         media_type="audio/wav",
         headers={"Content-Disposition": 'attachment; filename="speech.wav"'},
     )
+
+
+@app.post("/vibetube/render", response_model=models.VibeTubeRenderResponse)
+async def vibetube_render(
+    profile_id: Optional[str] = Form(None),
+    text: Optional[str] = Form(None),
+    language: str = Form("en"),
+    generation_id: Optional[str] = Form(None),
+    fps: int = Form(30),
+    width: int = Form(512),
+    height: int = Form(512),
+    on_threshold: float = Form(0.03),
+    off_threshold: float = Form(0.02),
+    smoothing_windows: int = Form(3),
+    min_hold_windows: int = Form(1),
+    idle: UploadFile = File(...),
+    talk: UploadFile = File(...),
+    idle_blink: Optional[UploadFile] = File(None),
+    talk_blink: Optional[UploadFile] = File(None),
+    blink: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Render a PNGtuber overlay video from an existing generation or from fresh text generation.
+    """
+    try:
+        if generation_id:
+            generation = db.query(DBGeneration).filter_by(id=generation_id).first()
+            if not generation:
+                raise HTTPException(status_code=404, detail="Generation not found")
+            audio_path = Path(generation.audio_path)
+            source_text = generation.text
+            source_generation_id = generation.id
+        else:
+            if not profile_id or not text:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Provide generation_id OR both profile_id and text",
+                )
+            gen = await generate_speech(
+                data=models.GenerationRequest(
+                    profile_id=profile_id,
+                    text=text,
+                    language=language,
+                ),
+                db=db,
+            )
+            audio_path = Path(gen.audio_path)
+            source_text = gen.text
+            source_generation_id = gen.id
+
+        if not audio_path.exists():
+            raise HTTPException(status_code=404, detail="Source audio file not found")
+
+        job_id = str(uuid.uuid4())
+        base_out = config.get_data_dir() / "vibetube" / job_id
+        avatar_dir = base_out / "avatar"
+        avatar_dir.mkdir(parents=True, exist_ok=True)
+
+        async def save_upload(upload: UploadFile, target: Path):
+            data = await upload.read()
+            target.write_bytes(data)
+
+        await save_upload(idle, avatar_dir / "idle.png")
+        await save_upload(talk, avatar_dir / "talk.png")
+        if idle_blink:
+            await save_upload(idle_blink, avatar_dir / "idle_blink.png")
+        if talk_blink:
+            await save_upload(talk_blink, avatar_dir / "talk_blink.png")
+        if blink:
+            await save_upload(blink, avatar_dir / "blink.png")
+
+        render_result = vibetube.render_overlay(
+            audio_path=audio_path,
+            avatar_dir=avatar_dir,
+            output_dir=base_out,
+            fps=fps,
+            width=width,
+            height=height,
+            on_threshold=on_threshold,
+            off_threshold=off_threshold,
+            smoothing_windows=smoothing_windows,
+            min_hold_windows=min_hold_windows,
+            text=source_text,
+        )
+
+        return models.VibeTubeRenderResponse(
+            job_id=job_id,
+            output_dir=str(base_out),
+            video_path=render_result["video_path"],
+            timeline_path=render_result["timeline_path"],
+            captions_path=render_result["captions_path"],
+            meta_path=render_result["meta_path"],
+            duration=float(render_result["duration_sec"]),
+            source_generation_id=source_generation_id,
+        )
+    except HTTPException:
+        raise
+    except vibetube.VibeTubeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"VibeTube render failed: {str(e)}")
 
 
 # ============================================

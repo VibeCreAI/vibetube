@@ -202,3 +202,33 @@ export interface StoryItemTrim {
 export interface StoryItemSplit {
   split_time_ms: number;
 }
+
+export interface VibeTubeRenderRequest {
+  profile_id?: string;
+  text?: string;
+  language?: LanguageCode;
+  generation_id?: string;
+  fps?: number;
+  width?: number;
+  height?: number;
+  on_threshold?: number;
+  off_threshold?: number;
+  smoothing_windows?: number;
+  min_hold_windows?: number;
+  idle: File;
+  talk: File;
+  idle_blink?: File;
+  talk_blink?: File;
+  blink?: File;
+}
+
+export interface VibeTubeRenderResponse {
+  job_id: string;
+  output_dir: string;
+  video_path: string;
+  timeline_path: string;
+  captions_path?: string;
+  meta_path: string;
+  duration: number;
+  source_generation_id?: string;
+}

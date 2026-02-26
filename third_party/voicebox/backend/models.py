@@ -75,6 +75,18 @@ class GenerationResponse(BaseModel):
         from_attributes = True
 
 
+class VibeTubeRenderResponse(BaseModel):
+    """Response model for VibeTube render endpoint."""
+    job_id: str
+    output_dir: str
+    video_path: str
+    timeline_path: str
+    captions_path: Optional[str] = None
+    meta_path: str
+    duration: float
+    source_generation_id: Optional[str] = None
+
+
 class HistoryQuery(BaseModel):
     """Query model for generation history."""
     profile_id: Optional[str] = None

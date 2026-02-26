@@ -7,6 +7,7 @@ import { ServerTab } from '@/components/ServerTab/ServerTab';
 import { Sidebar } from '@/components/Sidebar';
 import { StoriesTab } from '@/components/StoriesTab/StoriesTab';
 import { Toaster } from '@/components/ui/toaster';
+import { VibeTubeTab } from '@/components/VibeTubeTab/VibeTubeTab';
 import { VoicesTab } from '@/components/VoicesTab/VoicesTab';
 import { useModelDownloadToast } from '@/lib/hooks/useModelDownloadToast';
 import { MODEL_DISPLAY_NAMES, useRestoreActiveTasks } from '@/lib/hooks/useRestoreActiveTasks';
@@ -114,6 +115,12 @@ const serverRoute = createRoute({
   component: ServerTab,
 });
 
+const vibetubeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/vibetube',
+  component: VibeTubeTab,
+});
+
 // Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -122,6 +129,7 @@ const routeTree = rootRoute.addChildren([
   audioRoute,
   modelsRoute,
   serverRoute,
+  vibetubeRoute,
 ]);
 
 // Create router
