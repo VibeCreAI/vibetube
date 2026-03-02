@@ -6,6 +6,7 @@ import {
   Loader2,
   MoreHorizontal,
   Play,
+  PlayCircle,
   Trash2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -201,6 +202,33 @@ export function HistoryTable() {
     setVibeDialogOpen(true);
   };
 
+  const getLatestLinkedJob = (gen: HistoryResponse): VibeTubeJobResponse | null => {
+    const jobs = (vibetubeJobsQuery.data ?? []).filter(
+      (job) => job.source_generation_id === gen.id,
+    );
+    if (!jobs.length) {
+      return null;
+    }
+    jobs.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    return jobs[0] ?? null;
+  };
+
+  const handlePlayLatestVideo = (gen: HistoryResponse) => {
+    const latest = getLatestLinkedJob(gen);
+    if (!latest) {
+      toast({
+        title: 'No linked video yet',
+        description: 'Render a video first, then Play Video will open the latest linked render.',
+      });
+      return;
+    }
+    setSelectedGeneration(gen);
+    setSelectedVibeJobId(latest.job_id);
+    setVibeDialogOpen(true);
+  };
+
   const handleRenderVibeTube = async (gen: HistoryResponse) => {
     setRenderingGenerationIds((prev) => {
       const next = new Set(prev);
@@ -354,17 +382,9 @@ export function HistoryTable() {
                 <div
                   key={gen.id}
                   className={cn(
-                    'flex items-stretch gap-4 h-26 border rounded-md p-3 bg-card hover:bg-muted/70 transition-colors text-left w-full',
+                    'flex items-start gap-4 min-h-[126px] border rounded-md p-3 bg-card hover:bg-muted/70 transition-colors text-left w-full',
                     isCurrentlyPlaying && 'bg-muted/70',
                   )}
-                  onMouseDown={(e) => {
-                    // Don't trigger play if clicking on textarea or if text is selected
-                    const target = e.target as HTMLElement;
-                    if (target.closest('textarea') || window.getSelection()?.toString()) {
-                      return;
-                    }
-                    handlePlay(gen.id, gen.text, gen.profile_id);
-                  }}
                 >
                   {/* Waveform icon */}
                   <div className="flex items-center shrink-0">
@@ -372,7 +392,7 @@ export function HistoryTable() {
                   </div>
 
                   {/* Left side - Meta information */}
-                  <div className="flex flex-col gap-1.5 w-48 shrink-0 justify-center">
+                  <div className="flex flex-col gap-1.5 w-48 shrink-0 justify-start pt-1">
                     <div className="font-medium text-sm truncate" title={gen.profile_name}>
                       {gen.profile_name}
                     </div>
@@ -394,12 +414,30 @@ export function HistoryTable() {
                   </div>
 
                   {/* Right side - Transcript textarea */}
-                  <div className="flex-1 min-w-0 flex">
+                  <div className="flex-1 min-w-0 flex flex-col gap-2">
                     <Textarea
                       value={gen.text}
-                      className="flex-1 resize-none text-sm text-muted-foreground select-text"
+                      className="min-h-[72px] resize-none text-sm text-muted-foreground select-text"
                       readOnly
                     />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePlay(gen.id, gen.text, gen.profile_id)}
+                      >
+                        <Play className="mr-1.5 h-3.5 w-3.5" />
+                        Play Audio
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePlayLatestVideo(gen)}
+                      >
+                        <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
+                        Play Video
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Far right - Ellipsis actions */}
@@ -586,7 +624,9 @@ export function HistoryTable() {
               <video
                 className="w-full rounded-lg border bg-black/60 max-h-[380px]"
                 controls
+                autoPlay
                 preload="metadata"
+                key={selectedVibeJob.job_id}
                 src={apiClient.getVibeTubePreviewUrl(selectedVibeJob.job_id)}
               />
             ) : (

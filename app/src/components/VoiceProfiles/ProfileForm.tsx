@@ -30,6 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { apiClient } from '@/lib/api/client';
 import { LANGUAGE_CODES, LANGUAGE_OPTIONS, type LanguageCode } from '@/lib/constants/languages';
 import { useAudioPlayer } from '@/lib/hooks/useAudioPlayer';
 import { useAudioRecording } from '@/lib/hooks/useAudioRecording';
@@ -84,6 +85,36 @@ const profileSchema = baseProfileSchema.refine(
 );
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+type AvatarStateKey = 'idle' | 'talk' | 'idle_blink' | 'talk_blink';
+type AvatarStateFiles = Record<AvatarStateKey, File | null>;
+type AvatarStatePreviews = Record<AvatarStateKey, string | null>;
+
+const AVATAR_STATE_DEFS: Array<{
+  key: AvatarStateKey;
+  label: string;
+  helper: string;
+}> = [
+  {
+    key: 'idle',
+    label: 'Eyes Open + Mouth Closed (Idle)',
+    helper: 'Required',
+  },
+  {
+    key: 'talk',
+    label: 'Eyes Open + Mouth Open (Talking)',
+    helper: 'Required',
+  },
+  {
+    key: 'idle_blink',
+    label: 'Eyes Closed + Mouth Closed (Blink Idle)',
+    helper: 'Required',
+  },
+  {
+    key: 'talk_blink',
+    label: 'Eyes Closed + Mouth Open (Blink Talking)',
+    helper: 'Required',
+  },
+];
 
 // Helper to convert File to base64
 async function fileToBase64(file: File): Promise<string> {
@@ -133,6 +164,20 @@ export function ProfileForm() {
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [isValidatingAudio, setIsValidatingAudio] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarStateFiles, setAvatarStateFiles] = useState<AvatarStateFiles>({
+    idle: null,
+    talk: null,
+    idle_blink: null,
+    talk_blink: null,
+  });
+  const [avatarStatePreviews, setAvatarStatePreviews] = useState<AvatarStatePreviews>({
+    idle: null,
+    talk: null,
+    idle_blink: null,
+    talk_blink: null,
+  });
+  const [hasSavedVibeTubePack, setHasSavedVibeTubePack] = useState(false);
+  const [isPackLoading, setIsPackLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPlaying, playPause, cleanup: cleanupAudio } = useAudioPlayer();
   const isCreating = !editingProfileId;
@@ -282,6 +327,30 @@ export function ProfileForm() {
     }
   }, [selectedAvatarFile, editingProfile, serverUrl]);
 
+  const setAvatarStateFile = (key: AvatarStateKey, file: File | null) => {
+    setAvatarStateFiles((prev) => ({ ...prev, [key]: file }));
+    setAvatarStatePreviews((prev) => {
+      const old = prev[key];
+      if (old?.startsWith('blob:')) {
+        URL.revokeObjectURL(old);
+      }
+      return {
+        ...prev,
+        [key]: file ? URL.createObjectURL(file) : null,
+      };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.values(avatarStatePreviews).forEach((url) => {
+        if (url?.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [avatarStatePreviews]);
+
   // Restore form state from draft or editing profile
   useEffect(() => {
     if (editingProfile) {
@@ -332,6 +401,77 @@ export function ProfileForm() {
       setAvatarPreview(null);
     }
   }, [editingProfile, profileFormDraft, open, form]);
+
+  useEffect(() => {
+    if (!open || !editingProfileId) {
+      setHasSavedVibeTubePack(false);
+      if (!open) {
+        setAvatarStateFiles({
+          idle: null,
+          talk: null,
+          idle_blink: null,
+          talk_blink: null,
+        });
+        setAvatarStatePreviews({
+          idle: null,
+          talk: null,
+          idle_blink: null,
+          talk_blink: null,
+        });
+      }
+      return;
+    }
+
+    let cancelled = false;
+    setIsPackLoading(true);
+    apiClient
+      .getVibeTubeAvatarPack(editingProfileId)
+      .then((pack) => {
+        if (cancelled) return;
+        setHasSavedVibeTubePack(pack.complete);
+        const t = Date.now();
+        setAvatarStatePreviews((prev) => ({
+          idle:
+            prev.idle?.startsWith('blob:')
+              ? prev.idle
+              : pack.idle_url
+                ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'idle')}?t=${t}`
+                : null,
+          talk:
+            prev.talk?.startsWith('blob:')
+              ? prev.talk
+              : pack.talk_url
+                ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk')}?t=${t}`
+                : null,
+          idle_blink:
+            prev.idle_blink?.startsWith('blob:')
+              ? prev.idle_blink
+              : pack.idle_blink_url
+                ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'idle_blink')}?t=${t}`
+                : null,
+          talk_blink:
+            prev.talk_blink?.startsWith('blob:')
+              ? prev.talk_blink
+              : pack.talk_blink_url
+                ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk_blink')}?t=${t}`
+                : null,
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasSavedVibeTubePack(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsPackLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editingProfileId]);
 
   async function handleTranscribe() {
     const file = form.getValues('sampleFile');
@@ -420,6 +560,21 @@ export function ProfileForm() {
   }
 
   async function onSubmit(data: ProfileFormValues) {
+    const selectedAvatarStateEntries = Object.entries(avatarStateFiles).filter(
+      ([, file]) => file instanceof File,
+    ) as Array<[AvatarStateKey, File]>;
+    const hasAnyAvatarStateFile = selectedAvatarStateEntries.length > 0;
+    const hasAllAvatarStateFiles = selectedAvatarStateEntries.length === 4;
+
+    if (hasAnyAvatarStateFile && !hasAllAvatarStateFiles) {
+      toast({
+        title: 'Incomplete Avatar State Pack',
+        description: 'Upload all 4 state images (idle, talk, idle blink, talk blink) to save VibeTube avatar states.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       if (editingProfileId) {
         // Editing: just update profile
@@ -529,6 +684,25 @@ export function ProfileForm() {
             // Keep original if gain processing fails.
           }
         }
+
+        if (hasAllAvatarStateFiles) {
+          try {
+            await apiClient.saveVibeTubeAvatarPack({
+              profileId: editingProfileId,
+              idle: avatarStateFiles.idle as File,
+              talk: avatarStateFiles.talk as File,
+              idleBlink: avatarStateFiles.idle_blink as File,
+              talkBlink: avatarStateFiles.talk_blink as File,
+            });
+            setHasSavedVibeTubePack(true);
+          } catch (packError) {
+            toast({
+              title: 'VibeTube avatar states upload failed',
+              description: packError instanceof Error ? packError.message : 'Failed to save 4-state avatar pack.',
+              variant: 'destructive',
+            });
+          }
+        }
         if (
           !fileToUpload.type.includes('wav') &&
           !fileToUpload.name.toLowerCase().endsWith('.wav')
@@ -561,6 +735,24 @@ export function ProfileForm() {
                 title: 'Avatar upload failed',
                 description:
                   avatarError instanceof Error ? avatarError.message : 'Failed to upload avatar',
+                variant: 'destructive',
+              });
+            }
+          }
+
+          if (hasAllAvatarStateFiles) {
+            try {
+              await apiClient.saveVibeTubeAvatarPack({
+                profileId: profile.id,
+                idle: avatarStateFiles.idle as File,
+                talk: avatarStateFiles.talk as File,
+                idleBlink: avatarStateFiles.idle_blink as File,
+                talkBlink: avatarStateFiles.talk_blink as File,
+              });
+            } catch (packError) {
+              toast({
+                title: 'VibeTube avatar states upload failed',
+                description: packError instanceof Error ? packError.message : 'Failed to save 4-state avatar pack.',
                 variant: 'destructive',
               });
             }
@@ -895,6 +1087,73 @@ export function ProfileForm() {
                       </FormItem>
                     )}
                   />
+
+                  <div className="rounded-lg border bg-card/40 p-3 space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">VibeTube Avatar State Images</p>
+                      <p className="text-xs text-muted-foreground">
+                        Upload 4 PNG images so this voice can render instantly from Generate.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {AVATAR_STATE_DEFS.map((def) => (
+                        <div key={def.key} className="rounded-md border bg-background/60 p-2 space-y-2">
+                          <div className="text-xs">
+                            <p className="font-medium leading-tight">{def.label}</p>
+                            <p className="text-muted-foreground">{def.helper}</p>
+                          </div>
+                          <Input
+                            type="file"
+                            accept="image/png"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              if (!file) {
+                                setAvatarStateFile(def.key, null);
+                                return;
+                              }
+                              if (file.type !== 'image/png') {
+                                toast({
+                                  title: 'Invalid file type',
+                                  description: 'Please select a PNG image for avatar states.',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+                              if (file.size > 5 * 1024 * 1024) {
+                                toast({
+                                  title: 'File too large',
+                                  description: 'Avatar state image must be less than 5MB.',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+                              setAvatarStateFile(def.key, file);
+                            }}
+                          />
+                          <div className="h-20 w-20 rounded border bg-black/40 overflow-hidden">
+                            {avatarStatePreviews[def.key] ? (
+                              <img
+                                src={avatarStatePreviews[def.key] ?? undefined}
+                                alt={def.label}
+                                className="h-full w-full object-contain"
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
+                                No image
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {isPackLoading
+                        ? 'Checking saved VibeTube pack...'
+                        : hasSavedVibeTubePack
+                          ? 'Saved 4-state pack already exists for this voice profile.'
+                          : 'No saved 4-state pack for this profile yet.'}
+                    </p>
+                  </div>
 
                   <FormField
                     control={form.control}
