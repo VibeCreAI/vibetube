@@ -321,6 +321,27 @@ export function HistoryTable() {
     }
   };
 
+  const handleExportVibeSrt = async (jobId: string) => {
+    try {
+      const blob = await apiClient.exportVibeTubeSubtitles(jobId, 'srt');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vibetube-${jobId}.srt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Subtitles exported', description: 'Saved linked VibeTube subtitles (SRT).' });
+    } catch (error) {
+      toast({
+        title: 'Subtitle export failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleImportConfirm = () => {
     if (selectedFile) {
       importGeneration.mutate(selectedFile, {
@@ -606,6 +627,14 @@ export function HistoryTable() {
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Export MP4
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportVibeSrt(selectedVibeJob.job_id)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export SRT
                   </Button>
                   <Button
                     variant="outline"

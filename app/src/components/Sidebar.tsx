@@ -1,5 +1,5 @@
 import { Link, useMatchRoute } from '@tanstack/react-router';
-import { Box, BookOpen, Clapperboard, Loader2, Mic, Moon, Server, Speaker, Sun, Volume2 } from 'lucide-react';
+import { BookOpen, Clapperboard, Loader2, Moon, Settings, Sun, UserRound } from 'lucide-react';
 import vibetubeLogo from '@/assets/vibetube-logo.png';
 import { cn } from '@/lib/utils/cn';
 import { useGenerationStore } from '@/stores/generationStore';
@@ -11,13 +11,10 @@ interface SidebarProps {
 }
 
 const tabs = [
-  { id: 'main', path: '/', icon: Volume2, label: 'Generate' },
-  { id: 'vibetube', path: '/vibetube', icon: Clapperboard, label: 'VibeTube' },
+  { id: 'main', path: '/', icon: Clapperboard, label: 'Generate' },
   { id: 'stories', path: '/stories', icon: BookOpen, label: 'Stories' },
-  { id: 'voices', path: '/voices', icon: Mic, label: 'Voices' },
-  { id: 'audio', path: '/audio', icon: Speaker, label: 'Audio' },
-  { id: 'models', path: '/models', icon: Box, label: 'Models' },
-  { id: 'server', path: '/server', icon: Server, label: 'Server' },
+  { id: 'characters', path: '/characters', icon: UserRound, label: 'Characters' },
+  { id: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export function Sidebar({ isMacOS }: SidebarProps) {
@@ -45,8 +42,15 @@ export function Sidebar({ isMacOS }: SidebarProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           // For index route, use exact match; for others, use default matching
-          const isActive =
-            tab.path === '/'
+          const isSettingsRoute =
+            matchRoute({ to: '/settings' }) ||
+            matchRoute({ to: '/audio' }) ||
+            matchRoute({ to: '/models' }) ||
+            matchRoute({ to: '/server' }) ||
+            matchRoute({ to: '/vibetube' });
+          const isActive = tab.id === 'settings'
+            ? isSettingsRoute
+            : tab.path === '/'
               ? matchRoute({ to: '/', exact: true })
               : matchRoute({ to: tab.path });
 
@@ -68,14 +72,11 @@ export function Sidebar({ isMacOS }: SidebarProps) {
         })}
       </div>
 
-      {/* Spacer to push loader to bottom */}
-      <div className="flex-1" />
-
       <button
         type="button"
         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         className={cn(
-          'w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 mb-3',
+          'w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200',
           'hover:bg-muted/50 text-muted-foreground',
         )}
         title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -83,6 +84,9 @@ export function Sidebar({ isMacOS }: SidebarProps) {
       >
         {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
       </button>
+
+      {/* Spacer to push loader to bottom */}
+      <div className="flex-1" />
 
       {/* Generation Loader */}
       {isGenerating && (

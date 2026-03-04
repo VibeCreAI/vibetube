@@ -20,7 +20,8 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         role="checkbox"
         aria-checked={checked}
         disabled={disabled}
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (!disabled && onCheckedChange) {
             onCheckedChange(!checked);
           }

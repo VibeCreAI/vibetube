@@ -1,13 +1,10 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import { AppFrame } from '@/components/AppFrame/AppFrame';
-import { AudioTab } from '@/components/AudioTab/AudioTab';
 import { MainEditor } from '@/components/MainEditor/MainEditor';
-import { ModelsTab } from '@/components/ModelsTab/ModelsTab';
-import { ServerTab } from '@/components/ServerTab/ServerTab';
+import { SettingsTab } from '@/components/SettingsTab/SettingsTab';
 import { Sidebar } from '@/components/Sidebar';
 import { StoriesTab } from '@/components/StoriesTab/StoriesTab';
 import { Toaster } from '@/components/ui/toaster';
-import { VibeTubeTab } from '@/components/VibeTubeTab/VibeTubeTab';
 import { VoicesTab } from '@/components/VoicesTab/VoicesTab';
 import { useModelDownloadToast } from '@/lib/hooks/useModelDownloadToast';
 import { MODEL_DISPLAY_NAMES, useRestoreActiveTasks } from '@/lib/hooks/useRestoreActiveTasks';
@@ -87,7 +84,14 @@ const storiesRoute = createRoute({
   component: StoriesTab,
 });
 
-// Voices route
+// Characters route (primary)
+const charactersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/characters',
+  component: VoicesTab,
+});
+
+// Legacy alias route
 const voicesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/voices',
@@ -98,38 +102,46 @@ const voicesRoute = createRoute({
 const audioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/audio',
-  component: AudioTab,
+  component: () => <SettingsTab initialSection="audio" />,
 });
 
 // Models route
 const modelsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/models',
-  component: ModelsTab,
+  component: () => <SettingsTab initialSection="models" />,
 });
 
 // Server route
 const serverRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/server',
-  component: ServerTab,
+  component: () => <SettingsTab initialSection="server" />,
 });
 
 const vibetubeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/vibetube',
-  component: VibeTubeTab,
+  component: () => <SettingsTab initialSection="vibetube" />,
+});
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: SettingsTab,
 });
 
 // Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storiesRoute,
+  charactersRoute,
   voicesRoute,
   audioRoute,
   modelsRoute,
   serverRoute,
   vibetubeRoute,
+  settingsRoute,
 ]);
 
 // Create router

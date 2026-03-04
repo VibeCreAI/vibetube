@@ -106,8 +106,9 @@ export function AudioSampleRecording({
                 Start Recording
               </Button>
               <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-xl">
-                <label className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card/80 text-xs">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card/80 text-xs">
                   <Checkbox
+                    id="audio-processing-auto-gain"
                     checked={audioProcessing.autoGainControl}
                     onCheckedChange={(checked) =>
                       onAudioProcessingChange({
@@ -116,10 +117,13 @@ export function AudioSampleRecording({
                       })
                     }
                   />
-                  Auto Gain
-                </label>
-                <label className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card/80 text-xs">
+                  <label htmlFor="audio-processing-auto-gain" className="cursor-pointer">
+                    Auto Gain
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card/80 text-xs">
                   <Checkbox
+                    id="audio-processing-noise-suppression"
                     checked={audioProcessing.noiseSuppression}
                     onCheckedChange={(checked) =>
                       onAudioProcessingChange({
@@ -128,10 +132,13 @@ export function AudioSampleRecording({
                       })
                     }
                   />
-                  Noise Suppression
-                </label>
-                <label className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card/80 text-xs">
+                  <label htmlFor="audio-processing-noise-suppression" className="cursor-pointer">
+                    Noise Suppression
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card/80 text-xs">
                   <Checkbox
+                    id="audio-processing-echo-cancellation"
                     checked={audioProcessing.echoCancellation}
                     onCheckedChange={(checked) =>
                       onAudioProcessingChange({
@@ -140,8 +147,10 @@ export function AudioSampleRecording({
                       })
                     }
                   />
-                  Echo Cancellation
-                </label>
+                  <label htmlFor="audio-processing-echo-cancellation" className="cursor-pointer">
+                    Echo Cancellation
+                  </label>
+                </div>
               </div>
               <p className="relative z-10 text-sm text-muted-foreground text-center">
                 Click to start recording. Maximum duration: 30 seconds.

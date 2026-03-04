@@ -631,6 +631,21 @@ class ApiClient {
     return response.blob();
   }
 
+  async exportVibeTubeSubtitles(jobId: string, format: 'srt' | 'vtt' = 'srt'): Promise<Blob> {
+    const url = `${this.getBaseUrl()}/vibetube/jobs/${jobId}/export-subtitles?format=${format}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(
+          'Subtitle export endpoint not found on backend. Restart/update backend server, then try again.',
+        );
+      }
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    return response.blob();
+  }
+
   async listVibeTubeJobs(): Promise<VibeTubeJobResponse[]> {
     return this.request<VibeTubeJobResponse[]>('/vibetube/jobs');
   }

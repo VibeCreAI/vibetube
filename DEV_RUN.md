@@ -6,7 +6,7 @@ Use two terminals: one for backend API, one for frontend web UI.
 
 ```powershell
 cd C:\Users\samso\OneDrive\Desktop\Vibe\Web\VibeTube
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 17493
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 17493 --reload
 ```
 
 Health check:

@@ -19,12 +19,13 @@ import {
 } from '@/components/ui/table';
 import { ProfileForm } from '@/components/VoiceProfiles/ProfileForm';
 import { apiClient } from '@/lib/api/client';
-import type { VoiceProfileResponse } from '@/lib/api/types';
+import type { VibeTubeAvatarPackResponse, VoiceProfileResponse } from '@/lib/api/types';
 import { BOTTOM_SAFE_AREA_PADDING } from '@/lib/constants/ui';
 import { useHistory } from '@/lib/hooks/useHistory';
 import { useDeleteProfile, useProfileSamples, useProfiles } from '@/lib/hooks/useProfiles';
 import { cn } from '@/lib/utils/cn';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useServerStore } from '@/stores/serverStore';
 import { useUIStore } from '@/stores/uiStore';
 
 export function VoicesTab() {
@@ -74,6 +75,27 @@ export function VoicesTab() {
     queryFn: () => apiClient.listChannels(),
   });
 
+  const { data: avatarPacks } = useQuery({
+    queryKey: ['vibetube-avatar-packs', profiles?.map((profile) => profile.id).join(',')],
+    queryFn: async () => {
+      if (!profiles?.length) {
+        return {} as Record<string, VibeTubeAvatarPackResponse | null>;
+      }
+      const entries = await Promise.all(
+        profiles.map(async (profile) => {
+          try {
+            const pack = await apiClient.getVibeTubeAvatarPack(profile.id);
+            return [profile.id, pack] as const;
+          } catch {
+            return [profile.id, null] as const;
+          }
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, VibeTubeAvatarPackResponse | null>;
+    },
+    enabled: !!profiles?.length,
+  });
+
   const handleEdit = (profileId: string) => {
     setEditingProfileId(profileId);
     setDialogOpen(true);
@@ -97,7 +119,7 @@ export function VoicesTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Loading voices...</div>
+        <div className="text-muted-foreground">Loading characters...</div>
       </div>
     );
   }
@@ -110,10 +132,10 @@ export function VoicesTab() {
       {/* Fixed Header */}
       <div className="absolute top-0 left-0 right-0 z-20">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Voices</h1>
+          <h1 className="text-2xl font-bold">Characters</h1>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            New Voice
+            New Character
           </Button>
         </div>
       </div>
@@ -130,6 +152,7 @@ export function VoicesTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Avatar States</TableHead>
               <TableHead>Language</TableHead>
               <TableHead>Generations</TableHead>
               <TableHead>Samples</TableHead>
@@ -142,6 +165,7 @@ export function VoicesTab() {
               <VoiceRow
                 key={profile.id}
                 profile={profile}
+                avatarPack={avatarPacks?.[profile.id] ?? null}
                 generationCount={generationCounts[profile.id] || 0}
                 channelIds={channelAssignments?.[profile.id] || []}
                 channels={channels || []}
@@ -161,6 +185,7 @@ export function VoicesTab() {
 
 interface VoiceRowProps {
   profile: VoiceProfileResponse;
+  avatarPack: VibeTubeAvatarPackResponse | null;
   generationCount: number;
   channelIds: string[];
   channels: Array<{ id: string; name: string; is_default: boolean }>;
@@ -171,6 +196,7 @@ interface VoiceRowProps {
 
 function VoiceRow({
   profile,
+  avatarPack,
   generationCount,
   channelIds,
   channels,
@@ -179,13 +205,38 @@ function VoiceRow({
   onDelete,
 }: VoiceRowProps) {
   const { data: samples } = useProfileSamples(profile.id);
+  const serverUrl = useServerStore((state) => state.serverUrl);
+  const avatarUrl = profile.avatar_path ? `${serverUrl}/profiles/${profile.id}/avatar` : null;
+  const stateThumbs = [
+    { key: 'idle', label: 'Idle', url: avatarPack?.idle_url ? apiClient.getVibeTubeAvatarStateUrl(profile.id, 'idle') : null },
+    { key: 'talk', label: 'Talk', url: avatarPack?.talk_url ? apiClient.getVibeTubeAvatarStateUrl(profile.id, 'talk') : null },
+    {
+      key: 'idle_blink',
+      label: 'Idle Blink',
+      url: avatarPack?.idle_blink_url ? apiClient.getVibeTubeAvatarStateUrl(profile.id, 'idle_blink') : null,
+    },
+    {
+      key: 'talk_blink',
+      label: 'Talk Blink',
+      url: avatarPack?.talk_blink_url ? apiClient.getVibeTubeAvatarStateUrl(profile.id, 'talk_blink') : null,
+    },
+  ].filter((item) => item.url);
+  const versionTag = encodeURIComponent(profile.updated_at);
 
   return (
     <TableRow className="cursor-pointer" onClick={onEdit}>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <Mic className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border">
+            {avatarUrl ? (
+              <img
+                src={`${avatarUrl}?t=${versionTag}`}
+                alt={`${profile.name} avatar`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Mic className="h-4 w-4 text-muted-foreground" />
+            )}
           </div>
           <div>
             <div className="font-medium">{profile.name}</div>
@@ -194,6 +245,27 @@ function VoiceRow({
             )}
           </div>
         </div>
+      </TableCell>
+      <TableCell onClick={(e) => e.stopPropagation()}>
+        {stateThumbs.length > 0 ? (
+          <div className="flex items-center gap-1.5">
+            {stateThumbs.map((state) => (
+              <div
+                key={state.key}
+                className="h-8 w-8 rounded border bg-muted/30 overflow-hidden"
+                title={state.label}
+              >
+                <img
+                  src={`${state.url}?t=${versionTag}`}
+                  alt={`${profile.name} ${state.label}`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">No VibeTube pack</span>
+        )}
       </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>{profile.language}</TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>{generationCount}</TableCell>

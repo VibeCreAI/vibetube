@@ -1138,25 +1138,41 @@ def _write_srt(text: str, duration_sec: float, out_path: Path) -> None:
     if not lines:
         lines = ["..."]
 
+    total_ms = max(1, int(round(max(0.0, float(duration_sec)) * 1000.0)))
     total_weight = sum(max(1, len(line)) for line in lines)
-    cursor = 0.0
+    cursor_ms = 0
+    cumulative_weight = 0
     blocks: list[str] = []
+    line_count = len(lines)
     for idx, line in enumerate(lines, start=1):
         weight = max(1, len(line))
-        seg = duration_sec * (weight / total_weight)
-        start = cursor
-        end = duration_sec if idx == len(lines) else min(duration_sec, cursor + seg)
+        start_ms = cursor_ms
+        if idx == line_count:
+            end_ms = total_ms
+        else:
+            cumulative_weight += weight
+            proportional_end = int(round(total_ms * (cumulative_weight / float(total_weight))))
+
+            remaining_lines = line_count - idx
+            min_end = start_ms + 1
+            max_end = max(min_end, total_ms - remaining_lines)
+            end_ms = max(min_end, min(max_end, proportional_end))
 
         blocks.append(str(idx))
-        blocks.append(f"{_srt_time(start)} --> {_srt_time(end)}")
+        blocks.append(f"{_srt_time_from_ms(start_ms)} --> {_srt_time_from_ms(end_ms)}")
         blocks.append(line)
         blocks.append("")
-        cursor = end
+        cursor_ms = end_ms
     out_path.write_text("\n".join(blocks), encoding="utf-8")
 
 
 def _srt_time(seconds: float) -> str:
-    ms_total = int(seconds * 1000)
+    ms_total = int(round(max(0.0, float(seconds)) * 1000.0))
+    return _srt_time_from_ms(ms_total)
+
+
+def _srt_time_from_ms(ms_total: int) -> str:
+    ms_total = max(0, int(ms_total))
     ms = ms_total % 1000
     sec_total = ms_total // 1000
     sec = sec_total % 60

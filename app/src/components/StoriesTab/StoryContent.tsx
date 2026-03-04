@@ -316,6 +316,27 @@ export function StoryContent() {
     }
   };
 
+  const handleExportStoryRenderSubtitles = async (jobId: string) => {
+    try {
+      const blob = await apiClient.exportVibeTubeSubtitles(jobId, 'srt');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vibetube-story-${jobId}.srt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Subtitles exported', description: 'Saved story subtitles as SRT.' });
+    } catch (error) {
+      toast({
+        title: 'Subtitle export failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeleteStoryRender = async (jobId: string) => {
     const confirmed = await confirm('Delete this story render? This removes all files for this render.');
     if (!confirmed) return;
@@ -465,6 +486,16 @@ export function StoryContent() {
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export MP4
+                </Button>
+              )}
+              {selectedStoryJob && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportStoryRenderSubtitles(selectedStoryJob.job_id)}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export SRT
                 </Button>
               )}
               {selectedStoryJob && (

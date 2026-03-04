@@ -156,6 +156,61 @@ def _extract_caption_preview(captions_path: Path, max_chars: int = 120) -> Optio
     return None
 
 
+def _ensure_vibetube_job_captions(job_dir: Path) -> Path:
+    """Resolve or regenerate captions.srt for a VibeTube job directory."""
+    meta_path = job_dir / "meta.json"
+    captions_path = job_dir / "captions.srt"
+    meta: dict = {}
+
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+
+    source_text = str(meta.get("source_text_preview") or "").strip()
+    duration_sec = meta.get("duration_sec")
+    try:
+        duration_value = float(duration_sec)
+    except (TypeError, ValueError):
+        duration_value = 0.0
+
+    # Prefer regenerating from source metadata when available so caption timing
+    # reflects the latest subtitle writer logic for both new and existing jobs.
+    if source_text and duration_value > 0:
+        vibetube._write_srt(text=source_text, duration_sec=duration_value, out_path=captions_path)
+        meta["captions"] = captions_path.name
+        try:
+            meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return captions_path
+
+    if captions_path.exists():
+        return captions_path
+
+    # Respect explicit captions filename from metadata when regeneration is not possible.
+    captions_name = str(meta.get("captions") or "").strip()
+    if captions_name:
+        named_path = job_dir / captions_name
+        if named_path.exists():
+            return named_path
+
+    raise FileNotFoundError("No subtitle data found for this render job.")
+
+
+def _srt_text_to_vtt_text(srt_text: str) -> str:
+    """Convert SRT text payload to WebVTT payload."""
+    lines = srt_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    converted: list[str] = ["WEBVTT", ""]
+    for raw in lines:
+        line = raw.strip()
+        if line and line.isdigit():
+            continue
+        converted.append(raw.replace(",", "."))
+    return "\n".join(converted).strip() + "\n"
+
+
 def _save_data_url_image(data_url: str, target_path: Path) -> None:
     """Decode a data URL image and save it to disk."""
     match = re.match(r"^data:(image/[a-zA-Z0-9.+-]+);base64,(.+)$", data_url.strip())
@@ -1166,6 +1221,45 @@ async def vibetube_export_mp4(job_id: str):
         mp4_path,
         media_type="video/mp4",
         filename=f"vibetube-{job_id}.mp4",
+    )
+
+
+@app.get("/vibetube/jobs/{job_id}/export-subtitles")
+async def vibetube_export_subtitles(
+    job_id: str,
+    format: str = Query(default="srt", pattern="^(srt|vtt)$"),
+):
+    """Export subtitles with timestamps for a rendered VibeTube job."""
+    job_dir = config.get_data_dir() / "vibetube" / job_id
+    if not job_dir.exists() or not job_dir.is_dir():
+        raise HTTPException(status_code=404, detail="VibeTube job not found")
+
+    try:
+        captions_path = _ensure_vibetube_job_captions(job_dir)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Subtitle export failed: {str(e)}")
+
+    if format == "srt":
+        return FileResponse(
+            captions_path,
+            media_type="application/x-subrip",
+            filename=f"vibetube-{job_id}.srt",
+        )
+
+    try:
+        srt_text = captions_path.read_text(encoding="utf-8")
+        vtt_text = _srt_text_to_vtt_text(srt_text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to convert subtitles to VTT: {str(e)}")
+
+    return StreamingResponse(
+        io.BytesIO(vtt_text.encode("utf-8")),
+        media_type="text/vtt",
+        headers={
+            "Content-Disposition": _safe_content_disposition("attachment", f"vibetube-{job_id}.vtt")
+        },
     )
 
 
