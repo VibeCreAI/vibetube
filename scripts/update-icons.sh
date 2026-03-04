@@ -6,15 +6,15 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-EXPORTS_DIR="tauri/assets/voicebox_exports"
-ICON_BUNDLE="tauri/assets/voicebox.icon"
+EXPORTS_DIR="tauri/assets/vibetube_exports"
+ICON_BUNDLE="tauri/assets/vibetube.icon"
 ASSETS_DIR="$ICON_BUNDLE/Assets"
 ICONS_DIR="tauri/src-tauri/icons"
-LANDING_LOGO="landing/public/voicebox-logo.png"
+LANDING_LOGO="landing/public/vibetube-logo.png"
 LANDING_PUBLIC="landing/public"
-SOURCE_ICON="$EXPORTS_DIR/voicebox-iOS-Dark-1024x1024@1x.png"
+SOURCE_ICON="$EXPORTS_DIR/vibetube-iOS-Dark-1024x1024@1x.png"
 
-echo "🎨 Updating all Voicebox icons from exports..."
+echo "🎨 Updating all Vibetube icons from exports..."
 echo ""
 
 # Check if source exists
@@ -31,7 +31,7 @@ echo "📦 Part 1: Compiling Liquid Glass Icon Bundle"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-echo "Compiling voicebox.icon with actool..."
+echo "Compiling vibetube.icon with actool..."
 # Remove old generated icons to force rebuild
 rm -rf tauri/src-tauri/gen/*.icns tauri/src-tauri/gen/Assets.car 2>/dev/null
 
@@ -39,10 +39,10 @@ cd tauri/src-tauri
 cargo build 2>/dev/null || echo "  ⚠ Cargo build had warnings (this is normal)"
 cd ../..
 
-if [ -f "tauri/src-tauri/gen/voicebox.icns" ]; then
-  echo "  ✓ voicebox.icns generated"
+if [ -f "tauri/src-tauri/gen/vibetube.icns" ]; then
+  echo "  ✓ vibetube.icns generated"
 else
-  echo "  ⚠ Warning: voicebox.icns not generated (will use fallback)"
+  echo "  ⚠ Warning: vibetube.icns not generated (will use fallback)"
 fi
 
 echo ""
@@ -67,24 +67,24 @@ sips -s format png -z 512 512 "$SOURCE_ICON" --out "$ICONS_DIR/icon.png" 2>/dev/
 
 # Copy Liquid Glass compiled ICNS or generate fallback
 echo "Copying icon.icns..."
-if [ -f "tauri/src-tauri/gen/voicebox.icns" ]; then
-  cp tauri/src-tauri/gen/voicebox.icns "$ICONS_DIR/icon.icns"
+if [ -f "tauri/src-tauri/gen/vibetube.icns" ]; then
+  cp tauri/src-tauri/gen/vibetube.icns "$ICONS_DIR/icon.icns"
   echo "  ✓ Copied Liquid Glass compiled icon.icns"
 else
   echo "  ⚠ Liquid Glass icon not found, generating fallback icon.icns..."
-mkdir -p /tmp/voicebox-iconset.iconset
-sips -s format png -z 16 16 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_16x16.png 2>/dev/null
-sips -s format png -z 32 32 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_16x16@2x.png 2>/dev/null
-sips -s format png -z 32 32 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_32x32.png 2>/dev/null
-sips -s format png -z 64 64 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_32x32@2x.png 2>/dev/null
-sips -s format png -z 128 128 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_128x128.png 2>/dev/null
-sips -s format png -z 256 256 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_128x128@2x.png 2>/dev/null
-sips -s format png -z 256 256 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_256x256.png 2>/dev/null
-sips -s format png -z 512 512 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_256x256@2x.png 2>/dev/null
-sips -s format png -z 512 512 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_512x512.png 2>/dev/null
-  sips -s format png -z 1024 1024 "$SOURCE_ICON" --out /tmp/voicebox-iconset.iconset/icon_512x512@2x.png 2>/dev/null
-  iconutil -c icns /tmp/voicebox-iconset.iconset -o "$ICONS_DIR/icon.icns"
-  rm -rf /tmp/voicebox-iconset.iconset
+mkdir -p /tmp/vibetube-iconset.iconset
+sips -s format png -z 16 16 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_16x16.png 2>/dev/null
+sips -s format png -z 32 32 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_16x16@2x.png 2>/dev/null
+sips -s format png -z 32 32 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_32x32.png 2>/dev/null
+sips -s format png -z 64 64 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_32x32@2x.png 2>/dev/null
+sips -s format png -z 128 128 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_128x128.png 2>/dev/null
+sips -s format png -z 256 256 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_128x128@2x.png 2>/dev/null
+sips -s format png -z 256 256 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_256x256.png 2>/dev/null
+sips -s format png -z 512 512 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_256x256@2x.png 2>/dev/null
+sips -s format png -z 512 512 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_512x512.png 2>/dev/null
+  sips -s format png -z 1024 1024 "$SOURCE_ICON" --out /tmp/vibetube-iconset.iconset/icon_512x512@2x.png 2>/dev/null
+  iconutil -c icns /tmp/vibetube-iconset.iconset -o "$ICONS_DIR/icon.icns"
+  rm -rf /tmp/vibetube-iconset.iconset
   echo "  ✓ Generated fallback icon.icns"
 fi
 

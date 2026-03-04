@@ -33,8 +33,8 @@ export function Sidebar({ isMacOS }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="mb-2">
-        <img src={vibetubeLogo} alt="VibeTube" className="w-12 h-12 object-contain" />
+      <div className="mb-2 h-12 w-12 rounded-full bg-black ring-2 ring-cyan-400/70 flex items-center justify-center">
+        <img src={vibetubeLogo} alt="VibeTube" className="w-10 h-10 object-contain" />
       </div>
 
       {/* Navigation Buttons */}

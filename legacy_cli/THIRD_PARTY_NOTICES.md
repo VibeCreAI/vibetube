@@ -2,11 +2,11 @@
 
 VibeTube integrates with the following third-party projects:
 
-## Voicebox
-- Project: https://github.com/jamiepine/voicebox
+## Vibetube
+- Project: https://github.com/jamiepine/vibetube
 - License: MIT
 - Usage in VibeTube: External REST API integration for TTS generation.
-- Notes: VibeTube does not copy Voicebox internals; it calls Voicebox over HTTP.
+- Notes: VibeTube does not copy Vibetube internals; it calls Vibetube over HTTP.
 
 ## PyToon
 - Project: https://github.com/lukerbs/pytoon

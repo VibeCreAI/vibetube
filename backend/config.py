@@ -1,4 +1,4 @@
-﻿"""
+"""
 Configuration module for VibeTube backend.
 
 Handles data directory configuration for production bundling.
@@ -8,9 +8,9 @@ import os
 from pathlib import Path
 
 # Allow users to override the HuggingFace model download directory.
-# Set VOICEBOX_MODELS_DIR to an absolute path before starting the server.
+# Set VIBETUBE_MODELS_DIR to an absolute path before starting the server.
 # This sets HF_HUB_CACHE so all huggingface_hub downloads go to that path.
-_custom_models_dir = os.environ.get("VOICEBOX_MODELS_DIR")
+_custom_models_dir = os.environ.get("VIBETUBE_MODELS_DIR")
 if _custom_models_dir:
     os.environ["HF_HUB_CACHE"] = _custom_models_dir
     print(f"[config] Model download path set to: {_custom_models_dir}")

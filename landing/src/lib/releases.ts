@@ -11,7 +11,7 @@ export interface ReleaseInfo {
   downloadLinks: DownloadLinks;
 }
 
-const GITHUB_REPO = 'jamiepine/voicebox';
+const GITHUB_REPO = 'jamiepine/vibetube';
 const GITHUB_API_BASE = 'https://api.github.com';
 
 // Cache for release info (in-memory cache, resets on server restart)
@@ -74,11 +74,11 @@ export async function getLatestRelease(): Promise<ReleaseInfo> {
     const releaseInfo: ReleaseInfo = {
       version,
       downloadLinks: {
-        macArm: downloadLinks.macArm || `${baseUrl}/voicebox_aarch64.app.tar.gz`,
-        macIntel: downloadLinks.macIntel || `${baseUrl}/voicebox_x64.app.tar.gz`,
+        macArm: downloadLinks.macArm || `${baseUrl}/vibetube_aarch64.app.tar.gz`,
+        macIntel: downloadLinks.macIntel || `${baseUrl}/vibetube_x64.app.tar.gz`,
         windows:
-          downloadLinks.windows || `${baseUrl}/voicebox_${version.replace('v', '')}_x64_en-US.msi`,
-        linux: downloadLinks.linux || `${baseUrl}/voicebox_x86_64-unknown-linux-gnu.AppImage`,
+          downloadLinks.windows || `${baseUrl}/vibetube_${version.replace('v', '')}_x64_en-US.msi`,
+        linux: downloadLinks.linux || `${baseUrl}/vibetube_x86_64-unknown-linux-gnu.AppImage`,
       },
     };
 

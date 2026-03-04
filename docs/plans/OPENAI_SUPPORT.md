@@ -2,11 +2,11 @@
 
 **Status:** Planned for v0.2.0
 
-**Issue:** [#10 OpenAI API compatibility](https://github.com/jamiepine/voicebox/issues/10)
+**Issue:** [#10 OpenAI API compatibility](https://github.com/jamiepine/vibetube/issues/10)
 
 ## Overview
 
-This feature exposes OpenAI-compatible endpoints from Voicebox, allowing any tool, library, or application that speaks the OpenAI Audio API to use Voicebox as a drop-in local replacement.
+This feature exposes OpenAI-compatible endpoints from Vibetube, allowing any tool, library, or application that speaks the OpenAI Audio API to use Vibetube as a drop-in local replacement.
 
 ```mermaid
 flowchart LR
@@ -16,7 +16,7 @@ flowchart LR
         Apps[Third-party Apps]
     end
     
-    subgraph voicebox [Voicebox Server]
+    subgraph vibetube [Vibetube Server]
         OpenAI["/v1/audio/* endpoints"]
         TTS[TTSModel]
         Whisper[WhisperModel]
@@ -33,8 +33,8 @@ flowchart LR
 
 ## Use Cases
 
-- **OpenAI SDK users**: `openai.audio.speech.create()` works with Voicebox
-- **LLM frameworks**: LangChain, AutoGen, etc. can use Voicebox for TTS
+- **OpenAI SDK users**: `openai.audio.speech.create()` works with Vibetube
+- **LLM frameworks**: LangChain, AutoGen, etc. can use Vibetube for TTS
 - **Shell scripts**: `curl` commands copy-pasted from OpenAI docs work
 - **Existing integrations**: Any tool expecting OpenAI's API works without code changes
 
@@ -60,7 +60,7 @@ OpenAI spec: https://platform.openai.com/docs/api-reference/audio/createSpeech
 
 **Voice Mapping Strategy:**
 
-- `voice` parameter maps to Voicebox profile names (case-insensitive)
+- `voice` parameter maps to Vibetube profile names (case-insensitive)
 - If no match, use a configurable default profile
 - Support special syntax: `voice: "profile:uuid"` for explicit profile ID
 
@@ -132,7 +132,7 @@ Add helper in [backend/profiles.py](backend/profiles.py):
 ```python
 async def resolve_voice_for_openai(voice: str, db: Session) -> Optional[VoiceProfile]:
     """
-    Resolve OpenAI voice parameter to a Voicebox profile.
+    Resolve OpenAI voice parameter to a Vibetube profile.
     
     Priority:
     1. Exact profile name match (case-insensitive)

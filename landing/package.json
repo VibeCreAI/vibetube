@@ -1,7 +1,7 @@
 {
-  "name": "@voicebox/landing",
+  "name": "@vibetube/landing",
   "version": "0.1.13",
-  "description": "Landing page for voicebox.sh",
+  "description": "Landing page for vibetube.sh",
   "scripts": {
     "dev": "bun --bun next dev --turbo",
     "build": "bun --bun next build",

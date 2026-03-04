@@ -14,7 +14,7 @@ We release patches for security vulnerabilities. Which versions are eligible for
 If you discover a security vulnerability, please report it responsibly:
 
 1. **Do not** open a public GitHub issue
-2. Email security details to: [security@voicebox.sh](mailto:security@voicebox.sh)
+2. Email security details to: [security@vibetube.sh](mailto:security@vibetube.sh)
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -31,7 +31,7 @@ We will:
 
 ### For Users
 
-- **Keep Voicebox updated** - Updates include security patches
+- **Keep Vibetube updated** - Updates include security patches
 - **Verify downloads** - Only download from official releases
 - **Local processing** - Voice data stays on your machine
 - **Network security** - Use HTTPS when connecting to remote servers
@@ -47,7 +47,7 @@ We will:
 
 ### Local Processing
 
-Voicebox processes all audio locally by default. Your voice data never leaves your machine unless you explicitly enable remote server mode.
+Vibetube processes all audio locally by default. Your voice data never leaves your machine unless you explicitly enable remote server mode.
 
 ### Remote Server Mode
 
@@ -89,4 +89,4 @@ Security updates will be:
 
 ---
 
-Thank you for helping keep Voicebox secure! 🔒
+Thank you for helping keep Vibetube secure! 🔒

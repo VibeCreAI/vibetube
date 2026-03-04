@@ -8,7 +8,7 @@ import { Header } from '@/components/Header';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Voicebox - Open Source Voice Cloning Desktop App Powered by Qwen3-TTS',
+  title: 'Vibetube - Open Source Voice Cloning Desktop App Powered by Qwen3-TTS',
   description:
     'Near-perfect voice cloning powered by Qwen3-TTS. Desktop app for Mac, Windows, and Linux. Multi-sample support, smart caching, local or remote inference.',
   keywords: ['voice cloning', 'TTS', 'Qwen3', 'desktop app', 'AI voice'],
@@ -20,10 +20,10 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   openGraph: {
-    title: 'voicebox',
+    title: 'vibetube',
     description: 'Professional voice cloning with Qwen3-TTS',
     type: 'website',
-    url: 'https://voicebox.sh',
+    url: 'https://vibetube.sh',
   },
 };
 

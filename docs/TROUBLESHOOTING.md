@@ -1,16 +1,16 @@
 # Troubleshooting Guide
 
-Common issues and solutions for Voicebox.
+Common issues and solutions for Vibetube.
 
 ## Installation Issues
 
-### macOS: "Voicebox cannot be opened because it is from an unidentified developer"
+### macOS: "Vibetube cannot be opened because it is from an unidentified developer"
 
 **Solution:**
 1. Right-click the `.dmg` file
 2. Select "Open"
 3. Click "Open" in the security dialog
-4. Alternatively, go to System Settings → Privacy & Security → Allow Voicebox
+4. Alternatively, go to System Settings → Privacy & Security → Allow Vibetube
 
 ### Windows: "Windows protected your PC"
 
@@ -23,8 +23,8 @@ Common issues and solutions for Voicebox.
 
 **Solution:**
 ```bash
-chmod +x voicebox-*.AppImage
-./voicebox-*.AppImage
+chmod +x vibetube-*.AppImage
+./vibetube-*.AppImage
 ```
 
 ## Runtime Issues
@@ -46,12 +46,12 @@ chmod +x voicebox-*.AppImage
 3. **Check permissions**
    ```bash
    # macOS/Linux
-   chmod +x tauri/src-tauri/binaries/voicebox-server-*
+   chmod +x tauri/src-tauri/binaries/vibetube-server-*
    ```
 
 4. **Check logs**
-   - macOS: Open Console.app and search for "voicebox"
-   - Linux: Check `~/.local/share/voicebox/` for logs
+   - macOS: Open Console.app and search for "vibetube"
+   - Linux: Check `~/.local/share/vibetube/` for logs
    - Windows: Check Event Viewer
 
 ### "Model download failed"
@@ -216,12 +216,12 @@ chmod +x voicebox-*.AppImage
 
 **Solutions:**
 1. **Check data directory**
-   - macOS: `~/Library/Application Support/voicebox/`
-   - Windows: `%APPDATA%/voicebox/`
-   - Linux: `~/.local/share/voicebox/`
+   - macOS: `~/Library/Application Support/vibetube/`
+   - Windows: `%APPDATA%/vibetube/`
+   - Linux: `~/.local/share/vibetube/`
 
 2. **Check database**
-   - Database: `data/voicebox.db`
+   - Database: `data/vibetube.db`
    - Ensure file exists and is readable
 
 3. **Restore from backup**
@@ -232,10 +232,10 @@ chmod +x voicebox-*.AppImage
 
 **Solutions:**
 1. **Close other instances**
-   - Ensure only one Voicebox instance is running
+   - Ensure only one Vibetube instance is running
 
 2. **Restart app**
-   - Close and reopen Voicebox
+   - Close and reopen Vibetube
 
 3. **Check file permissions**
    - Ensure database file is writable
@@ -293,7 +293,7 @@ chmod +x voicebox-*.AppImage
 2. **Create new issue**
    - Include:
      - OS and version
-     - Voicebox version
+     - Vibetube version
      - Steps to reproduce
      - Error messages/logs
      - Screenshots (if applicable)
@@ -305,4 +305,4 @@ chmod +x voicebox-*.AppImage
 
 ---
 
-For more help, open an issue on [GitHub](https://github.com/jamiepine/voicebox/issues).
+For more help, open an issue on [GitHub](https://github.com/jamiepine/vibetube/issues).

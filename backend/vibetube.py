@@ -1,5 +1,5 @@
 """
-VibeTube renderer extension for Voicebox backend.
+VibeTube renderer extension for Vibetube backend.
 """
 
 from __future__ import annotations

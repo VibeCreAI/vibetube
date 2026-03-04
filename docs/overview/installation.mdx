@@ -1,11 +1,11 @@
 ---
 title: "Installation"
-description: "Download and install Voicebox on macOS, Windows, or Linux"
+description: "Download and install Vibetube on macOS, Windows, or Linux"
 ---
 
 ## Download
 
-Voicebox is available for macOS and Windows, with Linux builds coming soon.
+Vibetube is available for macOS and Windows, with Linux builds coming soon.
 
 <CardGroup cols={2}>
   <Card title="macOS" icon="apple">
@@ -20,25 +20,25 @@ Voicebox is available for macOS and Windows, with Linux builds coming soon.
 
 <Tabs>
   <Tab title="Apple Silicon">
-    Download: [voicebox_aarch64.app.tar.gz](https://github.com/jamiepine/voicebox/releases/latest/download/voicebox_aarch64.app.tar.gz)
+    Download: [vibetube_aarch64.app.tar.gz](https://github.com/jamiepine/vibetube/releases/latest/download/vibetube_aarch64.app.tar.gz)
 
     ```bash
     # Extract the archive
-    tar -xzf voicebox_aarch64.app.tar.gz
+    tar -xzf vibetube_aarch64.app.tar.gz
 
     # Move to Applications
-    mv Voicebox.app /Applications/
+    mv Vibetube.app /Applications/
     ```
   </Tab>
   <Tab title="Intel">
-    Download: [voicebox_x64.app.tar.gz](https://github.com/jamiepine/voicebox/releases/latest/download/voicebox_x64.app.tar.gz)
+    Download: [vibetube_x64.app.tar.gz](https://github.com/jamiepine/vibetube/releases/latest/download/vibetube_x64.app.tar.gz)
 
     ```bash
     # Extract the archive
-    tar -xzf voicebox_x64.app.tar.gz
+    tar -xzf vibetube_x64.app.tar.gz
 
     # Move to Applications
-    mv Voicebox.app /Applications/
+    mv Vibetube.app /Applications/
     ```
   </Tab>
 </Tabs>
@@ -47,12 +47,12 @@ Voicebox is available for macOS and Windows, with Linux builds coming soon.
 
 <Tabs>
   <Tab title="MSI Installer">
-    Download: [voicebox_x64_en-US.msi](https://github.com/jamiepine/voicebox/releases/latest/download/voicebox_x64_en-US.msi)
+    Download: [vibetube_x64_en-US.msi](https://github.com/jamiepine/vibetube/releases/latest/download/vibetube_x64_en-US.msi)
 
     Double-click the MSI file and follow the installation wizard.
   </Tab>
   <Tab title="Setup Executable">
-    Download: [voicebox_x64-setup.exe](https://github.com/jamiepine/voicebox/releases/latest/download/voicebox_x64-setup.exe)
+    Download: [vibetube_x64-setup.exe](https://github.com/jamiepine/vibetube/releases/latest/download/vibetube_x64-setup.exe)
 
     Run the executable and follow the installation wizard.
   </Tab>
@@ -66,13 +66,13 @@ Voicebox is available for macOS and Windows, with Linux builds coming soon.
 
 ## First Launch
 
-When you launch Voicebox for the first time:
+When you launch Vibetube for the first time:
 
 1. **Model Download** — Qwen3-TTS model (~2-4GB) will download automatically on first use
 2. **Data Directory** — Voice profiles and generated audio are stored in:
-   - macOS: `~/Library/Application Support/com.voicebox.app/`
-   - Windows: `%APPDATA%/com.voicebox.app/`
-   - Linux: `~/.config/com.voicebox.app/`
+   - macOS: `~/Library/Application Support/com.vibetube.app/`
+   - Windows: `%APPDATA%/com.vibetube.app/`
+   - Linux: `~/.config/com.vibetube.app/`
 
 3. **Backend Server** — The bundled Python server starts automatically
 
@@ -103,7 +103,7 @@ When you launch Voicebox for the first time:
 
 After installation, verify everything works:
 
-1. Launch Voicebox
+1. Launch Vibetube
 2. Check the server status indicator in the bottom-left corner (should be green)
 3. Navigate to **Profiles** and create a test profile
 4. Generate a short audio clip to verify the TTS engine works

@@ -8,7 +8,7 @@ export function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
           <div>
-            <h3 className="font-bold text-lg mb-4">voicebox</h3>
+            <h3 className="font-bold text-lg mb-4">vibetube</h3>
             <p className="text-muted-foreground text-sm">
               Professional voice cloning powered by Qwen3-TTS. Desktop app for Mac, Windows, and
               Linux.
@@ -77,7 +77,7 @@ export function Footer() {
         </div>
         <Separator className="my-8" />
         <div className="text-center text-muted-foreground text-sm space-y-2">
-          <p>© 2026 voicebox. All rights reserved.</p>
+          <p>© 2026 vibetube. All rights reserved.</p>
         </div>
       </div>
     </footer>

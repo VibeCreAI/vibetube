@@ -47,7 +47,7 @@ def test_mlx_audio_import():
 
 
 def test_model_loading():
-    """Step 3: Load Qwen3-TTS model (1.7B - same as voicebox uses)."""
+    """Step 3: Load Qwen3-TTS model (1.7B - same as vibetube uses)."""
     print("=" * 60)
     print("Step 3: Loading Qwen3-TTS model (1.7B)")
     print("=" * 60)
@@ -62,7 +62,7 @@ def test_model_loading():
         from mlx_audio.tts import load
         
         start = time.time()
-        # Load the MLX-converted version of the same model voicebox uses
+        # Load the MLX-converted version of the same model vibetube uses
         model = load("mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16")
         load_time = time.time() - start
         

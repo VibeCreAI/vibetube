@@ -8,8 +8,8 @@ from urllib.parse import urljoin
 import requests
 
 
-class VoiceboxError(RuntimeError):
-    """Raised when Voicebox API calls fail."""
+class VibetubeError(RuntimeError):
+    """Raised when Vibetube API calls fail."""
 
 
 @dataclass(slots=True)
@@ -19,8 +19,8 @@ class VoiceProfile:
     language: str | None = None
 
 
-def list_profiles(voicebox_url: str, timeout_sec: float = 20.0) -> list[VoiceProfile]:
-    base = voicebox_url.rstrip("/")
+def list_profiles(vibetube_url: str, timeout_sec: float = 20.0) -> list[VoiceProfile]:
+    base = vibetube_url.rstrip("/")
     url = f"{base}/profiles"
 
     try:
@@ -28,9 +28,9 @@ def list_profiles(voicebox_url: str, timeout_sec: float = 20.0) -> list[VoicePro
         response.raise_for_status()
         data = response.json()
     except requests.RequestException as exc:
-        raise VoiceboxError(f"Failed to list profiles from {url}: {exc}") from exc
+        raise VibetubeError(f"Failed to list profiles from {url}: {exc}") from exc
     except ValueError as exc:
-        raise VoiceboxError(f"Voicebox response was not JSON at {url}.") from exc
+        raise VibetubeError(f"Vibetube response was not JSON at {url}.") from exc
 
     profiles_raw = data if isinstance(data, list) else data.get("profiles", [])
     out: list[VoiceProfile] = []
@@ -47,14 +47,14 @@ def list_profiles(voicebox_url: str, timeout_sec: float = 20.0) -> list[VoicePro
 
 
 def create_profile(
-    voicebox_url: str,
+    vibetube_url: str,
     name: str,
     language: str = "en",
     sample_wav: Path | None = None,
     transcript: str | None = None,
     timeout_sec: float = 60.0,
 ) -> VoiceProfile:
-    base = voicebox_url.rstrip("/")
+    base = vibetube_url.rstrip("/")
     create_url = f"{base}/profiles"
     payload = {"name": name, "language": language}
 
@@ -63,23 +63,23 @@ def create_profile(
         response.raise_for_status()
         created = response.json() if response.content else {}
     except requests.RequestException as exc:
-        raise VoiceboxError(f"Failed creating profile at {create_url}: {exc}") from exc
+        raise VibetubeError(f"Failed creating profile at {create_url}: {exc}") from exc
     except ValueError as exc:
-        raise VoiceboxError(f"Voicebox returned invalid JSON when creating profile at {create_url}.") from exc
+        raise VibetubeError(f"Vibetube returned invalid JSON when creating profile at {create_url}.") from exc
 
     profile_id = str(created.get("id") or created.get("profile_id") or "").strip()
     if not profile_id:
         # Fallback: re-list and find by name.
-        candidates = [p for p in list_profiles(voicebox_url=voicebox_url, timeout_sec=timeout_sec) if p.name == name]
+        candidates = [p for p in list_profiles(vibetube_url=vibetube_url, timeout_sec=timeout_sec) if p.name == name]
         if not candidates:
-            raise VoiceboxError("Voicebox profile creation response did not include profile id.")
+            raise VibetubeError("Vibetube profile creation response did not include profile id.")
         profile = candidates[-1]
     else:
         profile = VoiceProfile(profile_id=profile_id, name=name, language=language)
 
     if sample_wav is not None:
         add_sample_to_profile(
-            voicebox_url=voicebox_url,
+            vibetube_url=vibetube_url,
             profile_id=profile.profile_id,
             sample_wav=sample_wav,
             transcript=transcript,
@@ -90,16 +90,16 @@ def create_profile(
 
 
 def add_sample_to_profile(
-    voicebox_url: str,
+    vibetube_url: str,
     profile_id: str,
     sample_wav: Path,
     transcript: str | None = None,
     timeout_sec: float = 120.0,
 ) -> None:
     if not sample_wav.exists():
-        raise VoiceboxError(f"Sample audio not found: {sample_wav}")
+        raise VibetubeError(f"Sample audio not found: {sample_wav}")
 
-    base = voicebox_url.rstrip("/")
+    base = vibetube_url.rstrip("/")
     endpoint_candidates = [
         f"{base}/profiles/{profile_id}/samples",
         f"{base}/profiles/{profile_id}/sample",
@@ -124,22 +124,22 @@ def add_sample_to_profile(
             except requests.RequestException as exc:
                 last_error = str(exc)
 
-    raise VoiceboxError(
-        "Could not upload sample audio to Voicebox profile. "
-        "Your Voicebox build may require adding samples in its UI/workflow. "
+    raise VibetubeError(
+        "Could not upload sample audio to Vibetube profile. "
+        "Your Vibetube build may require adding samples in its UI/workflow. "
         f"Last error: {last_error}"
     )
 
 
-def synthesize_with_voicebox(
+def synthesize_with_vibetube(
     text: str,
-    voicebox_url: str,
+    vibetube_url: str,
     out_wav: Path,
     profile_id: str | None = None,
     language: str | None = None,
     timeout_sec: float = 90.0,
 ) -> Path:
-    base = voicebox_url.rstrip("/")
+    base = vibetube_url.rstrip("/")
     payload = {"text": text}
     if profile_id:
         payload["profile_id"] = profile_id
@@ -174,9 +174,9 @@ def synthesize_with_voicebox(
         except ValueError:
             last_error = f"{url} returned non-audio, non-JSON response"
 
-    raise VoiceboxError(
-        "Could not generate audio via Voicebox. "
-        f"Attempted endpoints at {voicebox_url}. Last error: {last_error}"
+    raise VibetubeError(
+        "Could not generate audio via Vibetube. "
+        f"Attempted endpoints at {vibetube_url}. Last error: {last_error}"
     )
 
 

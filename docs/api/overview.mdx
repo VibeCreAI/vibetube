@@ -1,14 +1,14 @@
 ---
 title: "API Overview"
-description: "Integrate voice synthesis into your applications with the Voicebox REST API"
+description: "Integrate voice synthesis into your applications with the Vibetube REST API"
 ---
 
 ## Introduction
 
-Voicebox exposes a full REST API that allows you to integrate voice synthesis into your own applications. The API runs on `http://localhost:17493` by default.
+Vibetube exposes a full REST API that allows you to integrate voice synthesis into your own applications. The API runs on `http://localhost:17493` by default.
 
 <Card title="Interactive API Docs" icon="book" href="http://localhost:17493/docs">
-  When Voicebox is running, visit the auto-generated API documentation at `http://localhost:17493/docs`
+  When Vibetube is running, visit the auto-generated API documentation at `http://localhost:17493/docs`
 </Card>
 
 ## Base URL
@@ -42,7 +42,7 @@ curl -X POST http://localhost:17493/generate \
 
 ## API Endpoints
 
-The Voicebox API is organized into several categories:
+The Vibetube API is organized into several categories:
 
 <CardGroup cols={2}>
   <Card title="Voice Profiles" icon="user" href="/api/voice-profiles">
@@ -153,12 +153,12 @@ Error responses:
 
 ## TypeScript Client
 
-Voicebox provides an auto-generated TypeScript client with full type safety:
+Vibetube provides an auto-generated TypeScript client with full type safety:
 
 ```typescript
-import { VoiceboxClient } from '@/lib/api'
+import { VibetubeClient } from '@/lib/api'
 
-const client = new VoiceboxClient({
+const client = new VibetubeClient({
   baseUrl: 'http://localhost:17493'
 })
 

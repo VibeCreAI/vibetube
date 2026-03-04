@@ -1,4 +1,4 @@
-# Voicebox Makefile
+# Vibetube Makefile
 # Unix-only (macOS/Linux). Windows users should use WSL.
 
 SHELL := /bin/bash
@@ -25,7 +25,7 @@ NC := \033[0m # No Color
 
 .PHONY: help
 help: ## Show this help message
-	@echo -e "$(BLUE)Voicebox$(NC) - Development Commands"
+	@echo -e "$(BLUE)Vibetube$(NC) - Development Commands"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
@@ -134,11 +134,11 @@ build-web: ## Build web app
 db-init: $(VENV)/bin/activate ## Initialize SQLite database
 	@echo -e "$(BLUE)Initializing database...$(NC)"
 	cd $(BACKEND_DIR) && $(PYTHON_VENV) -c "from database import init_db; init_db()"
-	@echo -e "$(GREEN)✓ Database created at $(BACKEND_DIR)/data/voicebox.db$(NC)"
+	@echo -e "$(GREEN)✓ Database created at $(BACKEND_DIR)/data/vibetube.db$(NC)"
 
 db-reset: ## Reset database (delete and reinitialize)
 	@echo -e "$(YELLOW)Resetting database...$(NC)"
-	rm -f $(BACKEND_DIR)/data/voicebox.db
+	rm -f $(BACKEND_DIR)/data/vibetube.db
 	$(MAKE) db-init
 
 generate-api: ## Generate TypeScript API client from OpenAPI schema

@@ -41,7 +41,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='voicebox-server',
+    name='vibetube-server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

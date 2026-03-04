@@ -11,8 +11,8 @@ from engine.exporter.webm import ensure_ffmpeg, export_webm_alpha
 from engine.lipsync.pytoon_adapter import try_pytoon_timeline
 from engine.lipsync.rms import rms_timeline
 from engine.renderer.avatar import AvatarRenderer
-from engine.tts.manager import VoiceboxManagerError, ensure_voicebox_ready
-from engine.tts.voicebox_client import VoiceboxError, synthesize_with_voicebox
+from engine.tts.manager import VibetubeManagerError, ensure_vibetube_ready
+from engine.tts.vibetube_client import VibetubeError, synthesize_with_vibetube
 from models.config import RenderConfig
 from models.result import RenderResult
 from utils.audio import wav_duration_seconds
@@ -36,33 +36,33 @@ def render_job(config: RenderConfig) -> RenderResult:
             raise ValueError("Text is required when --input-wav is not provided.")
         if config.voice_profile_id:
             logger.info(
-                "Generating speech via Voicebox at %s (profile_id=%s)",
-                config.voicebox_url,
+                "Generating speech via Vibetube at %s (profile_id=%s)",
+                config.vibetube_url,
                 config.voice_profile_id,
             )
         else:
-            logger.info("Generating speech via Voicebox at %s", config.voicebox_url)
+            logger.info("Generating speech via Vibetube at %s", config.vibetube_url)
         try:
-            ensure_voicebox_ready(
-                voicebox_url=config.voicebox_url,
+            ensure_vibetube_ready(
+                vibetube_url=config.vibetube_url,
                 logger=logger,
-                manage_voicebox=config.manage_voicebox,
-                start_command=config.voicebox_start_command,
-                workdir=config.voicebox_workdir,
-                timeout_sec=config.voicebox_start_timeout_sec,
+                manage_vibetube=config.manage_vibetube,
+                start_command=config.vibetube_start_command,
+                workdir=config.vibetube_workdir,
+                timeout_sec=config.vibetube_start_timeout_sec,
             )
-            synthesize_with_voicebox(
+            synthesize_with_vibetube(
                 text=text,
-                voicebox_url=config.voicebox_url,
+                vibetube_url=config.vibetube_url,
                 out_wav=audio_path,
                 profile_id=config.voice_profile_id,
                 language=config.voice_language,
             )
-        except VoiceboxManagerError as exc:
-            raise RuntimeError(f"Voicebox startup failed. Details: {exc}") from exc
-        except VoiceboxError as exc:
+        except VibetubeManagerError as exc:
+            raise RuntimeError(f"Vibetube startup failed. Details: {exc}") from exc
+        except VibetubeError as exc:
             raise RuntimeError(
-                "Voicebox generation failed. Ensure Voicebox is running and reachable. "
+                "Vibetube generation failed. Ensure Vibetube is running and reachable. "
                 f"Details: {exc}"
             ) from exc
 
@@ -130,9 +130,9 @@ def render_job(config: RenderConfig) -> RenderResult:
         "video": video_path.name if video_path else None,
         "png_dir": png_dir.name if png_dir else None,
         "timeline": timeline_path.name,
-        "voicebox_url": config.voicebox_url if config.input_wav is None else None,
+        "vibetube_url": config.vibetube_url if config.input_wav is None else None,
         "voice_profile_id": config.voice_profile_id if config.input_wav is None else None,
-        "managed_voicebox": config.manage_voicebox if config.input_wav is None else None,
+        "managed_vibetube": config.manage_vibetube if config.input_wav is None else None,
     }
     meta_path = config.out_dir / "meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")

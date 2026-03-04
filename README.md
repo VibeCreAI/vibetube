@@ -1,8 +1,8 @@
 <p align="center">
-  <img src=".github/assets/icon-dark.webp" alt="Voicebox" width="120" height="120" />
+  <img src=".github/assets/icon-dark.webp" alt="Vibetube" width="120" height="120" />
 </p>
 
-<h1 align="center">Voicebox</h1>
+<h1 align="center">Vibetube</h1>
 
 <p align="center">
   <strong>The open-source voice synthesis studio.</strong><br/>
@@ -11,22 +11,22 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jamiepine/voicebox/releases">
-    <img src="https://img.shields.io/github/downloads/jamiepine/voicebox/total?style=flat&color=blue" alt="Downloads" />
+  <a href="https://github.com/jamiepine/vibetube/releases">
+    <img src="https://img.shields.io/github/downloads/jamiepine/vibetube/total?style=flat&color=blue" alt="Downloads" />
   </a>
-  <a href="https://github.com/jamiepine/voicebox/releases/latest">
-    <img src="https://img.shields.io/github/v/release/jamiepine/voicebox?style=flat" alt="Release" />
+  <a href="https://github.com/jamiepine/vibetube/releases/latest">
+    <img src="https://img.shields.io/github/v/release/jamiepine/vibetube?style=flat" alt="Release" />
   </a>
-  <a href="https://github.com/jamiepine/voicebox/stargazers">
-    <img src="https://img.shields.io/github/stars/jamiepine/voicebox?style=flat" alt="Stars" />
+  <a href="https://github.com/jamiepine/vibetube/stargazers">
+    <img src="https://img.shields.io/github/stars/jamiepine/vibetube?style=flat" alt="Stars" />
   </a>
-  <a href="https://github.com/jamiepine/voicebox/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/jamiepine/voicebox?style=flat" alt="License" />
+  <a href="https://github.com/jamiepine/vibetube/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/jamiepine/vibetube?style=flat" alt="License" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://voicebox.sh">voicebox.sh</a> •
+  <a href="https://vibetube.sh">vibetube.sh</a> •
   <a href="#download">Download</a> •
   <a href="#features">Features</a> •
   <a href="#api">API</a> •
@@ -36,32 +36,32 @@
 <br/>
 
 <p align="center">
-  <a href="https://voicebox.sh">
-    <img src="landing/public/assets/app-screenshot-1.webp" alt="Voicebox App Screenshot" width="800" />
+  <a href="https://vibetube.sh">
+    <img src="landing/public/assets/app-screenshot-1.webp" alt="Vibetube App Screenshot" width="800" />
   </a>
 </p>
 
 <p align="center">
-  <em>Click the image above to watch the demo video on <a href="https://voicebox.sh">voicebox.sh</a></em>
+  <em>Click the image above to watch the demo video on <a href="https://vibetube.sh">vibetube.sh</a></em>
 </p>
 
 <br/>
 
 <p align="center">
-  <img src="landing/public/assets/app-screenshot-2.webp" alt="Voicebox Screenshot 2" width="800" />
+  <img src="landing/public/assets/app-screenshot-2.webp" alt="Vibetube Screenshot 2" width="800" />
 </p>
 
 <p align="center">
-  <img src="landing/public/assets/app-screenshot-3.webp" alt="Voicebox Screenshot 3" width="800" />
+  <img src="landing/public/assets/app-screenshot-3.webp" alt="Vibetube Screenshot 3" width="800" />
 </p>
 
 <br/>
 
-## What is Voicebox?
+## What is Vibetube?
 
-Voicebox is a **local-first voice cloning studio** with DAW-like features for professional voice synthesis. Think of it as a **local, free and open-source alternative to ElevenLabs** — download models, clone voices, and generate speech entirely on your machine.
+Vibetube is a **local-first voice cloning studio** with DAW-like features for professional voice synthesis. Think of it as a **local, free and open-source alternative to ElevenLabs** — download models, clone voices, and generate speech entirely on your machine.
 
-Unlike cloud services that lock your voice data behind subscriptions, Voicebox gives you:
+Unlike cloud services that lock your voice data behind subscriptions, Vibetube gives you:
 
 - **Complete privacy** — models and voice data stay on your machine
 - **Professional tools** — multi-track timeline editor, audio trimming, conversation mixing
@@ -76,14 +76,14 @@ Download a voice model, clone any voice from a few seconds of audio, and compose
 
 ## Download
 
-Voicebox is available now for macOS and Windows.
+Vibetube is available now for macOS and Windows.
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Voicebox_aarch64.app.tar.gz](https://github.com/jamiepine/voicebox/releases/latest/download/Voicebox_aarch64.app.tar.gz) |
-| macOS (Intel) | [Voicebox_x64.app.tar.gz](https://github.com/jamiepine/voicebox/releases/latest/download/Voicebox_x64.app.tar.gz) |
-| Windows (MSI) | [Latest Windows MSI](https://github.com/jamiepine/voicebox/releases/latest) |
-| Windows (Setup) | [Latest Windows Setup](https://github.com/jamiepine/voicebox/releases/latest) |
+| macOS (Apple Silicon) | [Vibetube_aarch64.app.tar.gz](https://github.com/jamiepine/vibetube/releases/latest/download/Vibetube_aarch64.app.tar.gz) |
+| macOS (Intel) | [Vibetube_x64.app.tar.gz](https://github.com/jamiepine/vibetube/releases/latest/download/Vibetube_x64.app.tar.gz) |
+| Windows (MSI) | [Latest Windows MSI](https://github.com/jamiepine/vibetube/releases/latest) |
+| Windows (Setup) | [Latest Windows Setup](https://github.com/jamiepine/vibetube/releases/latest) |
 
 > **Linux builds coming soon** — Currently blocked by GitHub runner disk space limitations.
 
@@ -139,13 +139,13 @@ Create multi-voice narratives, podcasts, and conversations with a timeline-based
 
 - **Local mode** — Everything runs on your machine
 - **Remote mode** — Connect to a GPU server on your network
-- **One-click server** — Turn any machine into a Voicebox server
+- **One-click server** — Turn any machine into a Vibetube server
 
 ---
 
 ## API
 
-Voicebox exposes a full REST API, so you can integrate voice synthesis into your own apps.
+Vibetube exposes a full REST API, so you can integrate voice synthesis into your own apps.
 
 ```bash
 # Generate speech
@@ -198,7 +198,7 @@ Full API documentation available at `http://localhost:8000/docs` when running.
 
 ## Roadmap
 
-Voicebox is the beginning of something bigger. Here's what's coming:
+Vibetube is the beginning of something bigger. Here's what's coming:
 
 ### Coming Soon
 
@@ -215,9 +215,9 @@ Voicebox is the beginning of something bigger. Here's what's coming:
 - **Voice Design** — Create new voices from text descriptions
 - **Project System** — Save and load complex multi-voice sessions
 - **Plugin Architecture** — Extend with custom models and effects
-- **Mobile Companion** — Control Voicebox from your phone
+- **Mobile Companion** — Control Vibetube from your phone
 
-Voicebox aims to be the **one-stop shop for everything voice** — cloning, synthesis, editing, effects, and beyond.
+Vibetube aims to be the **one-stop shop for everything voice** — cloning, synthesis, editing, effects, and beyond.
 
 ---
 
@@ -233,8 +233,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup and contribution guide
 
 ```bash
 # Clone the repo
-git clone https://github.com/jamiepine/voicebox.git
-cd voicebox
+git clone https://github.com/jamiepine/vibetube.git
+cd vibetube
 
 # Setup everything
 make setup
@@ -247,8 +247,8 @@ make dev
 
 ```bash
 # Clone the repo
-git clone https://github.com/jamiepine/voicebox.git
-cd voicebox
+git clone https://github.com/jamiepine/vibetube.git
+cd vibetube
 
 # Install dependencies
 bun install
@@ -269,7 +269,7 @@ bun run dev
 ### Project Structure
 
 ```
-voicebox/
+vibetube/
 ├── app/              # Shared React frontend
 ├── tauri/            # Desktop app (Tauri + Rust)
 ├── web/              # Web deployment
@@ -302,5 +302,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <a href="https://voicebox.sh">voicebox.sh</a>
+  <a href="https://vibetube.sh">vibetube.sh</a>
 </p>

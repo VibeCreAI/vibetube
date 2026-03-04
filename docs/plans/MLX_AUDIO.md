@@ -16,7 +16,7 @@ We validated mlx-audio in an isolated environment (`mlx-test/`). Key findings:
 
 ### Model Mapping
 
-| voicebox (PyTorch) | mlx-audio (MLX) |
+| vibetube (PyTorch) | mlx-audio (MLX) |
 |--------------------|-----------------|
 | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | `mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16` |
 | `Qwen/Qwen3-TTS-12Hz-0.6B-Base` | (not yet converted) |
@@ -55,7 +55,7 @@ cd mlx-test && source venv/bin/activate && python demo.py "Your text here"
 
 ## Problem
 
-Apple Silicon users are stuck on CPU inference while Windows and Linux users get CUDA acceleration. The current PyTorch MPS backend has stability issues (lines 34-36 in `backend/tts.py` and `backend/transcribe.py`), forcing a CPU fallback that makes voicebox significantly slower on M1/M2/M3 Macs.
+Apple Silicon users are stuck on CPU inference while Windows and Linux users get CUDA acceleration. The current PyTorch MPS backend has stability issues (lines 34-36 in `backend/tts.py` and `backend/transcribe.py`), forcing a CPU fallback that makes vibetube significantly slower on M1/M2/M3 Macs.
 
 This creates a poor experience for a large portion of users who bought Apple Silicon specifically for ML workloads.
 
@@ -238,15 +238,15 @@ Create separate installers for MLX (Apple Silicon) and PyTorch (Universal).
 ```yaml
 - target: aarch64-apple-darwin
   backend: mlx
-  installer: voicebox-macos-silicon-{version}.dmg
+  installer: vibetube-macos-silicon-{version}.dmg
 
 - target: x86_64-apple-darwin
   backend: pytorch
-  installer: voicebox-macos-intel-{version}.dmg
+  installer: vibetube-macos-intel-{version}.dmg
 
 - target: x86_64-pc-windows-msvc
   backend: pytorch
-  installer: voicebox-windows-{version}.exe
+  installer: vibetube-windows-{version}.exe
 ```
 
 **Installation flow:**

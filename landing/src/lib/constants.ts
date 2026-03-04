@@ -1,8 +1,8 @@
-// Download links for voicebox releases
+// Download links for vibetube releases
 // These are fallback values - link to releases page if API fails
 export const LATEST_VERSION = 'v0.1.0';
 
-export const GITHUB_REPO = 'https://github.com/jamiepine/voicebox';
+export const GITHUB_REPO = 'https://github.com/jamiepine/vibetube';
 export const GITHUB_RELEASES_PAGE = `${GITHUB_REPO}/releases`;
 
 export const DOWNLOAD_LINKS = {

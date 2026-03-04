@@ -1,4 +1,4 @@
-﻿"""
+"""
 Database migration script to add instruct column to generations table.
 
 Run this once to update existing databases:
@@ -13,7 +13,7 @@ from pathlib import Path
 def migrate():
     """Add instruct column to generations table if it doesn't exist."""
     # Get data directory
-    data_dir = os.environ.get("VOICEBOX_DATA_DIR")
+    data_dir = os.environ.get("VIBETUBE_DATA_DIR")
     if data_dir:
         db_path = Path(data_dir) / "vibetube.db"
     else:

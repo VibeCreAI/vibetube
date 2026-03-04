@@ -15,7 +15,7 @@ export function Header() {
             href="/"
             className="flex items-center gap-2 font-bold text-xl sm:text-2xl hover:opacity-80 transition-opacity tracking-tight"
           >
-            Voicebox
+            Vibetube
           </Link>
 
           {/* Actions */}

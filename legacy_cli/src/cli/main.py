@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from engine.job import render_job
-from engine.tts.voicebox_client import VoiceboxError, create_profile, list_profiles
+from engine.tts.vibetube_client import VibetubeError, create_profile, list_profiles
 from models.config import RenderConfig
 
 
@@ -17,31 +17,31 @@ def build_parser() -> argparse.ArgumentParser:
 
     render = subparsers.add_parser("render", help="Render an avatar video or frame sequence")
     render.add_argument("--text", help="Path to text file OR inline text content")
-    render.add_argument("--input-wav", help="Existing WAV file (skips Voicebox generation)")
+    render.add_argument("--input-wav", help="Existing WAV file (skips Vibetube generation)")
     render.add_argument("--avatar", required=True, help="Avatar folder with idle/talk state PNGs")
     render.add_argument("--out", required=True, help="Output directory")
     render.add_argument("--fps", type=int, default=30)
     render.add_argument("--width", type=int, default=512)
     render.add_argument("--height", type=int, default=512)
     render.add_argument("--format", choices=["webm", "png"], default="webm")
-    render.add_argument("--voicebox-url", default="http://localhost:17493")
-    render.add_argument("--voice-profile-id", help="Voicebox profile id for cloned/custom voice")
-    render.add_argument("--voice-language", default=None, help="Voicebox language override (example: en)")
+    render.add_argument("--vibetube-url", default="http://localhost:17493")
+    render.add_argument("--voice-profile-id", help="Vibetube profile id for cloned/custom voice")
+    render.add_argument("--voice-language", default=None, help="Vibetube language override (example: en)")
     render.add_argument(
-        "--voicebox-start-command",
+        "--vibetube-start-command",
         default=None,
-        help="Command used to start managed Voicebox",
+        help="Command used to start managed Vibetube",
     )
     render.add_argument(
-        "--voicebox-workdir",
+        "--vibetube-workdir",
         default=None,
-        help="Working directory for --voicebox-start-command",
+        help="Working directory for --vibetube-start-command",
     )
     render.add_argument(
-        "--voicebox-start-timeout",
+        "--vibetube-start-timeout",
         type=float,
         default=45.0,
-        help="Seconds to wait for managed Voicebox startup",
+        help="Seconds to wait for managed Vibetube startup",
     )
     render.add_argument("--no-pytoon", action="store_true", help="Disable optional PyToon enhancement")
     render.add_argument("--window-ms", type=int, default=20, help="RMS analysis window in ms (10-20)")
@@ -50,13 +50,13 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument("--off-threshold", type=float, default=0.03, help="RMS threshold to switch back to idle")
     render.add_argument("--min-hold-frames", type=int, default=2, help="Consecutive windows required before switching")
 
-    voices = subparsers.add_parser("voices", help="Manage Voicebox voice profiles")
-    voices.add_argument("--voicebox-url", default="http://localhost:17493")
+    voices = subparsers.add_parser("voices", help="Manage Vibetube voice profiles")
+    voices.add_argument("--vibetube-url", default="http://localhost:17493")
     voices_subparsers = voices.add_subparsers(dest="voices_command", required=True)
 
-    voices_subparsers.add_parser("list", help="List available Voicebox profiles")
+    voices_subparsers.add_parser("list", help="List available Vibetube profiles")
 
-    create = voices_subparsers.add_parser("create", help="Create a new Voicebox profile")
+    create = voices_subparsers.add_parser("create", help="Create a new Vibetube profile")
     create.add_argument("--name", required=True, help="Profile display name")
     create.add_argument("--language", default="en", help="Profile language code")
     create.add_argument("--sample-wav", help="Optional WAV sample to upload after profile creation")
@@ -91,11 +91,11 @@ def _run_render(args: argparse.Namespace) -> int:
         else:
             text = args.text
 
-    auto_start_command, auto_workdir = _resolve_voicebox_start(
-        voicebox_url=args.voicebox_url,
-        explicit_command=args.voicebox_start_command or os.getenv("VIBETUBE_VOICEBOX_START_COMMAND"),
-        explicit_workdir=Path(args.voicebox_workdir) if args.voicebox_workdir else None,
-        manage_voicebox=True,
+    auto_start_command, auto_workdir = _resolve_vibetube_start(
+        vibetube_url=args.vibetube_url,
+        explicit_command=args.vibetube_start_command or os.getenv("VIBETUBE_VIBETUBE_START_COMMAND"),
+        explicit_workdir=Path(args.vibetube_workdir) if args.vibetube_workdir else None,
+        manage_vibetube=True,
     )
 
     config = RenderConfig(
@@ -105,13 +105,13 @@ def _run_render(args: argparse.Namespace) -> int:
         width=args.width,
         height=args.height,
         format=args.format,
-        voicebox_url=args.voicebox_url,
+        vibetube_url=args.vibetube_url,
         voice_profile_id=args.voice_profile_id,
         voice_language=args.voice_language,
-        manage_voicebox=True,
-        voicebox_start_command=auto_start_command,
-        voicebox_workdir=auto_workdir,
-        voicebox_start_timeout_sec=args.voicebox_start_timeout,
+        manage_vibetube=True,
+        vibetube_start_command=auto_start_command,
+        vibetube_workdir=auto_workdir,
+        vibetube_start_timeout_sec=args.vibetube_start_timeout,
         text=text,
         text_path=text_path,
         input_wav=Path(args.input_wav) if args.input_wav else None,
@@ -138,11 +138,11 @@ def _run_render(args: argparse.Namespace) -> int:
 
 def _run_voices(args: argparse.Namespace) -> int:
     if args.voices_command == "list":
-        profiles = list_profiles(voicebox_url=args.voicebox_url)
+        profiles = list_profiles(vibetube_url=args.vibetube_url)
         if not profiles:
-            print("No Voicebox profiles found.")
+            print("No Vibetube profiles found.")
             return 0
-        print("Voicebox profiles:")
+        print("Vibetube profiles:")
         for profile in profiles:
             language = profile.language or "-"
             print(f"- id={profile.profile_id} | name={profile.name} | language={language}")
@@ -151,13 +151,13 @@ def _run_voices(args: argparse.Namespace) -> int:
     if args.voices_command == "create":
         sample = Path(args.sample_wav) if args.sample_wav else None
         profile = create_profile(
-            voicebox_url=args.voicebox_url,
+            vibetube_url=args.vibetube_url,
             name=args.name,
             language=args.language,
             sample_wav=sample,
             transcript=args.sample_text,
         )
-        print("Voicebox profile created:")
+        print("Vibetube profile created:")
         print(f"- id={profile.profile_id}")
         print(f"- name={profile.name}")
         print(f"- language={profile.language or '-'}")
@@ -165,26 +165,26 @@ def _run_voices(args: argparse.Namespace) -> int:
             print(f"- sample uploaded from {sample}")
         return 0
 
-    raise VoiceboxError(f"Unsupported voices command: {args.voices_command}")
+    raise VibetubeError(f"Unsupported voices command: {args.voices_command}")
 
 
-def _resolve_voicebox_start(
-    voicebox_url: str,
+def _resolve_vibetube_start(
+    vibetube_url: str,
     explicit_command: str | None,
     explicit_workdir: Path | None,
-    manage_voicebox: bool,
+    manage_vibetube: bool,
 ) -> tuple[str | None, Path | None]:
     if explicit_command:
         return explicit_command, explicit_workdir
-    if not manage_voicebox:
+    if not manage_vibetube:
         return None, explicit_workdir
 
-    bundled_root = Path("third_party") / "voicebox"
+    bundled_root = Path("third_party") / "vibetube"
     bundled_server = bundled_root / "backend" / "server.py"
     if not bundled_server.exists():
         return None, explicit_workdir
 
-    parsed = urlparse(voicebox_url)
+    parsed = urlparse(vibetube_url)
     host = parsed.hostname or "127.0.0.1"
     port = parsed.port or 8000
     command = f"python -m backend.server --host {host} --port {port}"

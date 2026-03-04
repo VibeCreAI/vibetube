@@ -1,6 +1,6 @@
-# Voicebox Documentation
+# Vibetube Documentation
 
-This directory contains the documentation for Voicebox, built with [Mintlify](https://mintlify.com).
+This directory contains the documentation for Vibetube, built with [Mintlify](https://mintlify.com).
 
 ## Development
 

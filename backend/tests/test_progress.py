@@ -252,7 +252,7 @@ async def test_full_integration():
 async def main():
     """Run all tests."""
     print("\n" + "=" * 60)
-    print("Voicebox Progress Tracking Test Suite")
+    print("Vibetube Progress Tracking Test Suite")
     print("=" * 60)
 
     results = []

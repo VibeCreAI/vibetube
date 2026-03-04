@@ -5,10 +5,10 @@
 
 ## Overview
 
-External provider support allows you to connect Voicebox to remotely-hosted TTS and Whisper services instead of running models locally. This is useful for:
+External provider support allows you to connect Vibetube to remotely-hosted TTS and Whisper services instead of running models locally. This is useful for:
 
 - **Existing GPU Infrastructure**: You already have Qwen3-TTS running on a GPU server
-- **AMD GPU Users**: Run models on your AMD hardware, use Voicebox as the UI
+- **AMD GPU Users**: Run models on your AMD hardware, use Vibetube as the UI
 - **Cloud Deployments**: Host models on Modal, Replicate, RunPod, etc.
 - **Team Sharing**: Multiple users share one GPU server running models
 - **Mixed Deployments**: Local Whisper + remote TTS, or vice versa
@@ -17,7 +17,7 @@ External provider support allows you to connect Voicebox to remotely-hosted TTS 
 
 ```
 ┌─────────────────┐         HTTP/API         ┌──────────────────┐
-│   Voicebox UI   │ ───────────────────────> │  Your TTS Server │
+│   Vibetube UI   │ ───────────────────────> │  Your TTS Server │
 │   + Backend     │                           │  (Qwen3-TTS on   │
 │                 │ <─────────────────────── │   AMD/NVIDIA GPU)│
 │  - Profiles     │      Audio + Metadata     └──────────────────┘
@@ -29,7 +29,7 @@ External provider support allows you to connect Voicebox to remotely-hosted TTS 
                                               └──────────────────┘
 ```
 
-**What Voicebox Still Handles:**
+**What Vibetube Still Handles:**
 - Voice profile management
 - Generation history
 - Audio trimming/editing
@@ -57,7 +57,7 @@ WHISPER_REMOTE_URL=http://localhost:9000     # For self-hosted Whisper
 OPENAI_API_KEY=sk-...                        # For OpenAI Whisper API
 ```
 
-### Voicebox Config UI (Planned)
+### Vibetube Config UI (Planned)
 
 Settings page will include:
 - Provider selection dropdowns
@@ -244,7 +244,7 @@ WHISPER_MODE=openai-api
 OPENAI_API_KEY=sk-...
 ```
 
-Voicebox will use OpenAI's Whisper API automatically.
+Vibetube will use OpenAI's Whisper API automatically.
 
 ### Self-Hosted Whisper
 
@@ -277,7 +277,7 @@ async def transcribe(audio: UploadFile = File(...), language: str = None):
     return {"text": transcription}
 ```
 
-Configure Voicebox:
+Configure Vibetube:
 ```bash
 WHISPER_MODE=remote
 WHISPER_REMOTE_URL=http://localhost:9000
@@ -291,8 +291,8 @@ WHISPER_REMOTE_URL=http://localhost:9000
 
 **Setup:**
 1. Run `tts_server.py` on your AMD box (ROCm PyTorch)
-2. Configure Voicebox: `TTS_MODE=remote`, `TTS_REMOTE_URL=http://amd-box:8000`
-3. Use Voicebox UI for profiles, generation, editing
+2. Configure Vibetube: `TTS_MODE=remote`, `TTS_REMOTE_URL=http://amd-box:8000`
+3. Use Vibetube UI for profiles, generation, editing
 4. TTS happens on your AMD GPU
 
 ### 2. Team Deployment
@@ -301,7 +301,7 @@ WHISPER_REMOTE_URL=http://localhost:9000
 
 **Setup:**
 1. Deploy TTS server on shared GPU box
-2. Each person runs Voicebox desktop app locally
+2. Each person runs Vibetube desktop app locally
 3. All point to same `TTS_REMOTE_URL`
 4. Profiles and history stay local per user
 5. GPU usage is shared
@@ -350,7 +350,7 @@ async def generate(...):
     ...
 ```
 
-Configure Voicebox:
+Configure Vibetube:
 ```bash
 TTS_API_KEY=your-secret-key
 ```
@@ -406,7 +406,7 @@ def get_cached_generation(text, voice_prompt_hash, language, seed):
 For high-traffic deployments, run multiple TTS servers behind a load balancer:
 
 ```
-Voicebox ──> Load Balancer ──> TTS Server 1 (GPU 1)
+Vibetube ──> Load Balancer ──> TTS Server 1 (GPU 1)
                            ├──> TTS Server 2 (GPU 2)
                            └──> TTS Server 3 (GPU 3)
 ```
@@ -426,10 +426,10 @@ If you build an external provider, please share:
 2. Performance benchmarks
 3. Deployment guide
 
-Submit to: [GitHub Discussions](https://github.com/jamiepine/voicebox/discussions)
+Submit to: [GitHub Discussions](https://github.com/jamiepine/vibetube/discussions)
 
 ## Questions?
 
 - **Discord**: [Join the community](https://discord.gg/...)
-- **GitHub**: [Open an issue](https://github.com/jamiepine/voicebox/issues)
-- **Docs**: [Full documentation](https://voicebox.sh/docs)
+- **GitHub**: [Open an issue](https://github.com/jamiepine/vibetube/issues)
+- **Docs**: [Full documentation](https://vibetube.sh/docs)

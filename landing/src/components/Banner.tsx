@@ -12,7 +12,7 @@ export function Banner() {
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
           >
             <span>
-              Also by the creator of Voicebox:{' '}
+              Also by the creator of Vibetube:{' '}
               <strong className="text-foreground/90">Spacebot</strong>, an AI agent OS for teams.
               Connect Discord, Slack, or Telegram in one click.
             </span>

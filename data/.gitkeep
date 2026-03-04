@@ -3,5 +3,5 @@
 # - profiles/ - Voice profile audio files
 # - generations/ - Generated audio files
 # - projects/ - Audio studio project files
-# - voicebox.db - SQLite database
+# - vibetube.db - SQLite database
 # - cache/ - Voice prompt cache files

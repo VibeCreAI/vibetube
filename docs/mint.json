@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Voicebox",
+  "name": "Vibetube",
   "logo": {
     "light": "/logo/icon-light.png",
     "dark": "/logo/icon-dark.png"
@@ -33,7 +33,7 @@
     {
       "name": "GitHub",
       "icon": "github",
-      "url": "https://github.com/jamiepine/voicebox"
+      "url": "https://github.com/jamiepine/vibetube"
     }
   ],
   "navigation": [

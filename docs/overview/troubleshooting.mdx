@@ -1,9 +1,9 @@
 ---
 title: "Troubleshooting"
-description: "Common issues and solutions for Voicebox"
+description: "Common issues and solutions for Vibetube"
 ---
 
-This guide covers common issues you might encounter when using or developing Voicebox, along with solutions.
+This guide covers common issues you might encounter when using or developing Vibetube, along with solutions.
 
 ## Installation Issues
 
@@ -14,7 +14,7 @@ This occurs because the app isn't signed with an Apple Developer certificate.
 **Solution:**
 ```bash
 # Remove the quarantine attribute
-xattr -cr /Applications/Voicebox.app
+xattr -cr /Applications/Vibetube.app
 ```
 
 ### Windows: SmartScreen Warning
@@ -66,7 +66,7 @@ Windows SmartScreen may warn that the app is unrecognized.
 
     ```bash
     # macOS/Linux
-    chmod +x ~/Library/Application\ Support/com.voicebox.app/backend/voicebox-server
+    chmod +x ~/Library/Application\ Support/com.vibetube.app/backend/vibetube-server
     ```
   </Accordion>
 
@@ -75,12 +75,12 @@ Windows SmartScreen may warn that the app is unrecognized.
 
     **macOS:**
     ```bash
-    tail -f ~/Library/Application\ Support/com.voicebox.app/logs/server.log
+    tail -f ~/Library/Application\ Support/com.vibetube.app/logs/server.log
     ```
 
     **Windows:**
     ```bash
-    type %APPDATA%\com.voicebox.app\logs\server.log
+    type %APPDATA%\com.vibetube.app\logs\server.log
     ```
   </Accordion>
 </AccordionGroup>
@@ -155,7 +155,7 @@ This is expected behavior. The first generation downloads the Qwen3-TTS model (~
     - Video editors
     - Multiple browser tabs with WebGL
 
-    Then restart Voicebox.
+    Then restart Vibetube.
   </Accordion>
 
   <Accordion title="Use CPU Mode">
@@ -306,12 +306,12 @@ bun run tauri build
 - SQLite lock errors
 
 **Solutions:**
-- Close all Voicebox instances
+- Close all Vibetube instances
 - Delete the lock file:
   ```bash
   # macOS
-  rm ~/Library/Application\ Support/com.voicebox.app/data/voicebox.db-shm
-  rm ~/Library/Application\ Support/com.voicebox.app/data/voicebox.db-wal
+  rm ~/Library/Application\ Support/com.vibetube.app/data/vibetube.db-shm
+  rm ~/Library/Application\ Support/com.vibetube.app/data/vibetube.db-wal
   ```
 
 ### Corrupted Database
@@ -328,10 +328,10 @@ bun run tauri build
 
 ```bash
 # macOS
-rm ~/Library/Application\ Support/com.voicebox.app/data/voicebox.db
+rm ~/Library/Application\ Support/com.vibetube.app/data/vibetube.db
 
 # Windows
-del %APPDATA%\com.voicebox.app\data\voicebox.db
+del %APPDATA%\com.vibetube.app\data\vibetube.db
 ```
 
 Restart the app to create a fresh database.
@@ -387,7 +387,7 @@ rmdir /s %USERPROFILE%\.cache\huggingface\hub\models--Qwen*
   </Accordion>
 
   <Accordion title="Check GPU Selection">
-    If you have multiple GPUs, ensure Voicebox is using the right one.
+    If you have multiple GPUs, ensure Vibetube is using the right one.
 
     Settings → Generation → GPU Device
   </Accordion>
@@ -447,20 +447,20 @@ rmdir /s %USERPROFILE%\.cache\huggingface\hub\models--Qwen*
 
 If you're still experiencing problems:
 
-1. **Check GitHub Issues:** [github.com/jamiepine/voicebox/issues](https://github.com/jamiepine/voicebox/issues)
+1. **Check GitHub Issues:** [github.com/jamiepine/vibetube/issues](https://github.com/jamiepine/vibetube/issues)
 2. **Open a New Issue:** Provide:
    - Operating system and version
-   - Voicebox version
+   - Vibetube version
    - Steps to reproduce
    - Error messages or logs
-3. **Join Discord:** [discord.gg/voicebox](https://discord.gg/voicebox) (coming soon)
+3. **Join Discord:** [discord.gg/vibetube](https://discord.gg/vibetube) (coming soon)
 
 ## Diagnostic Information
 
 When reporting issues, include this information:
 
 ```bash
-# Voicebox version
+# Vibetube version
 # Check Help → About in the app
 
 # Operating system
@@ -474,4 +474,4 @@ python --version
 nvidia-smi  # NVIDIA GPUs
 ```
 
-For more detailed troubleshooting, see the [TROUBLESHOOTING.md](https://github.com/jamiepine/voicebox/blob/main/docs/TROUBLESHOOTING.md) file in the repository.
+For more detailed troubleshooting, see the [TROUBLESHOOTING.md](https://github.com/jamiepine/vibetube/blob/main/docs/TROUBLESHOOTING.md) file in the repository.

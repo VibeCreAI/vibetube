@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "VibeTube",
   "version": "0.1.13",
@@ -29,7 +29,7 @@
     },
     "resources": {
       "gen/Assets.car": "./",
-      "gen/voicebox.icns": "./",
+      "gen/vibetube.icns": "./",
       "gen/partial.plist": "./"
     }
   },
