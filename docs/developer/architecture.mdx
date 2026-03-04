@@ -1,11 +1,11 @@
----
+﻿---
 title: "Architecture"
-description: "Understanding Vibetube's technical architecture"
+description: "Understanding VibeTube's technical architecture"
 ---
 
 ## System Overview
 
-Vibetube uses a client-server architecture with a React frontend and Python backend. The desktop app is built with Tauri and contains two main layers:
+VibeTube uses a client-server architecture with a React frontend and Python backend. The desktop app is built with Tauri and contains two main layers:
 
 **Frontend Layer:** A React application that handles the UI components, state management with Zustand, and data fetching with React Query (TanStack Query).
 
@@ -28,16 +28,16 @@ These two layers communicate via HTTP, with the frontend making API requests to 
 
 ```
 app/src/
-├── components/       # React components
-│   ├── profiles/    # Voice profile UI
-│   ├── generation/  # Speech generation UI
-│   ├── stories/     # Timeline editor
-│   └── shared/      # Reusable components
-├── lib/             # Utilities
-│   ├── api/         # Generated API client
-│   └── utils/       # Helper functions
-├── hooks/           # React hooks
-└── stores/          # Zustand state stores
+â”œâ”€â”€ components/       # React components
+â”‚   â”œâ”€â”€ profiles/    # Voice profile UI
+â”‚   â”œâ”€â”€ generation/  # Speech generation UI
+â”‚   â”œâ”€â”€ stories/     # Timeline editor
+â”‚   â””â”€â”€ shared/      # Reusable components
+â”œâ”€â”€ lib/             # Utilities
+â”‚   â”œâ”€â”€ api/         # Generated API client
+â”‚   â””â”€â”€ utils/       # Helper functions
+â”œâ”€â”€ hooks/           # React hooks
+â””â”€â”€ stores/          # Zustand state stores
 ```
 
 ### State Management
@@ -201,6 +201,6 @@ When a user generates speech, the data flows through the following stages:
     Set up your dev environment
   </Card>
   <Card title="Contributing" icon="code-pull-request" href="/development/contributing">
-    Contribute to Vibetube
+    Contribute to VibeTube
   </Card>
 </CardGroup>

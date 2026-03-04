@@ -1,6 +1,6 @@
-# Contributing to Vibetube
+﻿# Contributing to VibeTube
 
-Thank you for your interest in contributing to Vibetube! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to VibeTube! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -38,8 +38,8 @@ Thank you for your interest in contributing to Vibetube! This document provides 
 
 1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/vibetube.git
-   cd vibetube
+   git clone https://github.com/YOUR_USERNAME/VibeTube.git
+   cd VibeTube
    ```
 
 2. **Install JavaScript dependencies**
@@ -173,8 +173,8 @@ bun run convert:assets
 ```
 
 This script:
-- Converts PNG → WebP (better compression, same quality)
-- Converts MOV → WebM (VP9 codec, smaller file size)
+- Converts PNG â†’ WebP (better compression, same quality)
+- Converts MOV â†’ WebM (VP9 codec, smaller file size)
 - Processes files in `landing/public/` and `docs/public/`
 - **Deletes original files** after successful conversion
 
@@ -277,50 +277,50 @@ def create_profile(name, language):
 ## Project Structure
 
 ```
-vibetube/
-├── app/              # Shared React frontend
-│   └── src/
-│       ├── components/   # UI components
-│       ├── lib/          # Utilities and API client
-│       └── hooks/        # React hooks
-├── backend/          # Python FastAPI server
-│   ├── main.py       # API routes
-│   ├── tts.py        # Voice synthesis
-│   └── ...
-├── tauri/            # Desktop app wrapper
-│   └── src-tauri/    # Rust backend
-└── scripts/          # Build scripts
+VibeTube/
+â”œâ”€â”€ app/              # Shared React frontend
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ components/   # UI components
+â”‚       â”œâ”€â”€ lib/          # Utilities and API client
+â”‚       â””â”€â”€ hooks/        # React hooks
+â”œâ”€â”€ backend/          # Python FastAPI server
+â”‚   â”œâ”€â”€ main.py       # API routes
+â”‚   â”œâ”€â”€ tts.py        # Voice synthesis
+â”‚   â””â”€â”€ ...
+â”œâ”€â”€ tauri/            # Desktop app wrapper
+â”‚   â””â”€â”€ src-tauri/    # Rust backend
+â””â”€â”€ scripts/          # Build scripts
 ```
 
 ## Areas for Contribution
 
-### 🐛 Bug Fixes
+### ðŸ› Bug Fixes
 
 - Check existing issues for bugs to fix
 - Test your fix thoroughly
 - Add tests if possible
 
-### ✨ New Features
+### âœ¨ New Features
 
 - Check the roadmap in README.md
 - Discuss major features in an issue first
 - Keep features focused and well-scoped
 
-### 📚 Documentation
+### ðŸ“š Documentation
 
 - Improve README clarity
 - Add code comments
 - Write API documentation
 - Create tutorials or guides
 
-### 🎨 UI/UX Improvements
+### ðŸŽ¨ UI/UX Improvements
 
 - Improve accessibility
 - Enhance visual design
 - Optimize performance
 - Add animations/transitions
 
-### 🔧 Infrastructure
+### ðŸ”§ Infrastructure
 
 - Improve build process
 - Add CI/CD improvements
@@ -430,4 +430,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-Thank you for contributing to Vibetube! 🎉
+Thank you for contributing to VibeTube! ðŸŽ‰

@@ -1,6 +1,6 @@
-# Changelog
+﻿# Changelog
 
-All notable changes to Vibetube will be documented in this file.
+All notable changes to VibeTube will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Desktop App
 - **Tauri Desktop App** - Native desktop application for macOS, Windows, and Linux
 - **Local Server Mode** - Embedded Python server runs automatically
-- **Remote Server Mode** - Connect to a remote Vibetube server on your network
+- **Remote Server Mode** - Connect to a remote VibeTube server on your network
 - **Auto-Updates** - Automatic update notifications and installation
 
 #### API
@@ -82,4 +82,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[0.1.0]: https://github.com/jamiepine/vibetube/releases/tag/v0.1.0
+[0.1.0]: https://github.com/jamiepine/VibeTube/releases/tag/v0.1.0

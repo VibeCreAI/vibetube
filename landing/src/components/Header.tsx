@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Github } from 'lucide-react';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ export function Header() {
             href="/"
             className="flex items-center gap-2 font-bold text-xl sm:text-2xl hover:opacity-80 transition-opacity tracking-tight"
           >
-            Vibetube
+            VibeTube
           </Link>
 
           {/* Actions */}

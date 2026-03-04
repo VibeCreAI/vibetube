@@ -1,22 +1,22 @@
-# Auto-Updater Documentation
+﻿# Auto-Updater Documentation
 
-Vibetube includes automatic updates powered by Tauri's updater plugin. This document explains how it works for both users and developers.
+VibeTube includes automatic updates powered by Tauri's updater plugin. This document explains how it works for both users and developers.
 
 ## 1. Generate Signing Keys
 
 Run this command to generate your signing keypair:
 
 ```bash
-cd tauri && bun tauri signer generate -w ~/.tauri/vibetube.key
+cd tauri && bun tauri signer generate -w ~/.tauri/VibeTube.key
 ```
 
 This creates:
-- **Private key**: `~/.tauri/vibetube.key` (keep this secret!)
-- **Public key**: `~/.tauri/vibetube.key.pub`
+- **Private key**: `~/.tauri/VibeTube.key` (keep this secret!)
+- **Public key**: `~/.tauri/VibeTube.key.pub`
 
 ## 2. Update Configuration
 
-Copy the content from `~/.tauri/vibetube.key.pub` and replace the placeholder in `tauri/src-tauri/tauri.conf.json`:
+Copy the content from `~/.tauri/VibeTube.key.pub` and replace the placeholder in `tauri/src-tauri/tauri.conf.json`:
 
 ```json
 {
@@ -24,7 +24,7 @@ Copy the content from `~/.tauri/vibetube.key.pub` and replace the placeholder in
     "updater": {
       "pubkey": "PASTE_PUBLIC_KEY_CONTENT_HERE",
       "endpoints": [
-        "https://github.com/YOUR_USERNAME/vibetube/releases/latest/download/latest.json"
+        "https://github.com/YOUR_USERNAME/VibeTube/releases/latest/download/latest.json"
       ]
     }
   }
@@ -39,14 +39,14 @@ When building releases, set these environment variables:
 
 **macOS/Linux:**
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/vibetube.key)"
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/VibeTube.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 bun run build
 ```
 
 **Windows PowerShell:**
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content ~/.tauri/vibetube.key -Raw
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content ~/.tauri/VibeTube.key -Raw
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
 bun run build
 ```
@@ -73,19 +73,19 @@ When you create a GitHub release, the build process will generate:
   "platforms": {
     "darwin-aarch64": {
       "signature": "CONTENT_FROM_.app.tar.gz.sig",
-      "url": "https://github.com/YOUR_USERNAME/vibetube/releases/download/v0.2.0/vibetube_0.2.0_aarch64.dmg"
+      "url": "https://github.com/YOUR_USERNAME/VibeTube/releases/download/v0.2.0/VibeTube_0.2.0_aarch64.dmg"
     },
     "darwin-x86_64": {
       "signature": "CONTENT_FROM_.app.tar.gz.sig",
-      "url": "https://github.com/YOUR_USERNAME/vibetube/releases/download/v0.2.0/vibetube_0.2.0_x64.dmg"
+      "url": "https://github.com/YOUR_USERNAME/VibeTube/releases/download/v0.2.0/VibeTube_0.2.0_x64.dmg"
     },
     "linux-x86_64": {
       "signature": "CONTENT_FROM_.AppImage.sig",
-      "url": "https://github.com/YOUR_USERNAME/vibetube/releases/download/v0.2.0/vibetube_0.2.0_amd64.AppImage"
+      "url": "https://github.com/YOUR_USERNAME/VibeTube/releases/download/v0.2.0/VibeTube_0.2.0_amd64.AppImage"
     },
     "windows-x86_64": {
       "signature": "CONTENT_FROM_.msi.sig",
-      "url": "https://github.com/YOUR_USERNAME/vibetube/releases/download/v0.2.0/vibetube_0.2.0_x64_en-US.msi"
+      "url": "https://github.com/YOUR_USERNAME/VibeTube/releases/download/v0.2.0/VibeTube_0.2.0_x64_en-US.msi"
     }
   }
 }
@@ -144,8 +144,8 @@ jobs:
 ```
 
 Add your private key to GitHub secrets:
-- Go to Settings → Secrets and variables → Actions
-- Add `TAURI_SIGNING_PRIVATE_KEY` with the content of `~/.tauri/vibetube.key`
+- Go to Settings â†’ Secrets and variables â†’ Actions
+- Add `TAURI_SIGNING_PRIVATE_KEY` with the content of `~/.tauri/VibeTube.key`
 - Add `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty string if no password)
 
 ## Frontend Integration

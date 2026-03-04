@@ -1,14 +1,14 @@
-# External Provider Support
+﻿# External Provider Support
 
 **Status:** Planned for v0.2.0
 **Discussion:** [Reddit Thread](https://reddit.com/r/LocalLLaMA/...)
 
 ## Overview
 
-External provider support allows you to connect Vibetube to remotely-hosted TTS and Whisper services instead of running models locally. This is useful for:
+External provider support allows you to connect VibeTube to remotely-hosted TTS and Whisper services instead of running models locally. This is useful for:
 
 - **Existing GPU Infrastructure**: You already have Qwen3-TTS running on a GPU server
-- **AMD GPU Users**: Run models on your AMD hardware, use Vibetube as the UI
+- **AMD GPU Users**: Run models on your AMD hardware, use VibeTube as the UI
 - **Cloud Deployments**: Host models on Modal, Replicate, RunPod, etc.
 - **Team Sharing**: Multiple users share one GPU server running models
 - **Mixed Deployments**: Local Whisper + remote TTS, or vice versa
@@ -16,20 +16,20 @@ External provider support allows you to connect Vibetube to remotely-hosted TTS 
 ## Architecture
 
 ```
-┌─────────────────┐         HTTP/API         ┌──────────────────┐
-│   Vibetube UI   │ ───────────────────────> │  Your TTS Server │
-│   + Backend     │                           │  (Qwen3-TTS on   │
-│                 │ <─────────────────────── │   AMD/NVIDIA GPU)│
-│  - Profiles     │      Audio + Metadata     └──────────────────┘
-│  - History      │
-│  - Audio Edit   │         HTTP/API         ┌──────────────────┐
-│  - UI           │ ───────────────────────> │ Whisper Service  │
-└─────────────────┘                           │ (OpenAI API or   │
-                                              │  self-hosted)    │
-                                              └──────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”         HTTP/API         â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚   VibeTube UI   â”‚ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€> â”‚  Your TTS Server â”‚
+â”‚   + Backend     â”‚                           â”‚  (Qwen3-TTS on   â”‚
+â”‚                 â”‚ <â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”‚   AMD/NVIDIA GPU)â”‚
+â”‚  - Profiles     â”‚      Audio + Metadata     â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+â”‚  - History      â”‚
+â”‚  - Audio Edit   â”‚         HTTP/API         â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  - UI           â”‚ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€> â”‚ Whisper Service  â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                           â”‚ (OpenAI API or   â”‚
+                                              â”‚  self-hosted)    â”‚
+                                              â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
-**What Vibetube Still Handles:**
+**What VibeTube Still Handles:**
 - Voice profile management
 - Generation history
 - Audio trimming/editing
@@ -57,7 +57,7 @@ WHISPER_REMOTE_URL=http://localhost:9000     # For self-hosted Whisper
 OPENAI_API_KEY=sk-...                        # For OpenAI Whisper API
 ```
 
-### Vibetube Config UI (Planned)
+### VibeTube Config UI (Planned)
 
 Settings page will include:
 - Provider selection dropdowns
@@ -244,7 +244,7 @@ WHISPER_MODE=openai-api
 OPENAI_API_KEY=sk-...
 ```
 
-Vibetube will use OpenAI's Whisper API automatically.
+VibeTube will use OpenAI's Whisper API automatically.
 
 ### Self-Hosted Whisper
 
@@ -277,7 +277,7 @@ async def transcribe(audio: UploadFile = File(...), language: str = None):
     return {"text": transcription}
 ```
 
-Configure Vibetube:
+Configure VibeTube:
 ```bash
 WHISPER_MODE=remote
 WHISPER_REMOTE_URL=http://localhost:9000
@@ -291,8 +291,8 @@ WHISPER_REMOTE_URL=http://localhost:9000
 
 **Setup:**
 1. Run `tts_server.py` on your AMD box (ROCm PyTorch)
-2. Configure Vibetube: `TTS_MODE=remote`, `TTS_REMOTE_URL=http://amd-box:8000`
-3. Use Vibetube UI for profiles, generation, editing
+2. Configure VibeTube: `TTS_MODE=remote`, `TTS_REMOTE_URL=http://amd-box:8000`
+3. Use VibeTube UI for profiles, generation, editing
 4. TTS happens on your AMD GPU
 
 ### 2. Team Deployment
@@ -301,7 +301,7 @@ WHISPER_REMOTE_URL=http://localhost:9000
 
 **Setup:**
 1. Deploy TTS server on shared GPU box
-2. Each person runs Vibetube desktop app locally
+2. Each person runs VibeTube desktop app locally
 3. All point to same `TTS_REMOTE_URL`
 4. Profiles and history stay local per user
 5. GPU usage is shared
@@ -350,7 +350,7 @@ async def generate(...):
     ...
 ```
 
-Configure Vibetube:
+Configure VibeTube:
 ```bash
 TTS_API_KEY=your-secret-key
 ```
@@ -406,9 +406,9 @@ def get_cached_generation(text, voice_prompt_hash, language, seed):
 For high-traffic deployments, run multiple TTS servers behind a load balancer:
 
 ```
-Vibetube ──> Load Balancer ──> TTS Server 1 (GPU 1)
-                           ├──> TTS Server 2 (GPU 2)
-                           └──> TTS Server 3 (GPU 3)
+VibeTube â”€â”€> Load Balancer â”€â”€> TTS Server 1 (GPU 1)
+                           â”œâ”€â”€> TTS Server 2 (GPU 2)
+                           â””â”€â”€> TTS Server 3 (GPU 3)
 ```
 
 ## Future Enhancements
@@ -426,10 +426,10 @@ If you build an external provider, please share:
 2. Performance benchmarks
 3. Deployment guide
 
-Submit to: [GitHub Discussions](https://github.com/jamiepine/vibetube/discussions)
+Submit to: [GitHub Discussions](https://github.com/jamiepine/VibeTube/discussions)
 
 ## Questions?
 
 - **Discord**: [Join the community](https://discord.gg/...)
-- **GitHub**: [Open an issue](https://github.com/jamiepine/vibetube/issues)
-- **Docs**: [Full documentation](https://vibetube.sh/docs)
+- **GitHub**: [Open an issue](https://github.com/jamiepine/VibeTube/issues)
+- **Docs**: [Full documentation](https://VibeTube.sh/docs)

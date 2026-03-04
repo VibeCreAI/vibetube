@@ -1,6 +1,6 @@
----
+﻿---
 title: "Development Setup"
-description: "Set up your local development environment for Vibetube"
+description: "Set up your local development environment for VibeTube"
 ---
 
 ## Prerequisites
@@ -31,8 +31,8 @@ Before you begin, ensure you have the following installed:
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/jamiepine/vibetube.git
-cd vibetube
+git clone https://github.com/jamiepine/VibeTube.git
+cd VibeTube
 ```
 
 ## Quick Setup (Recommended)
@@ -153,21 +153,21 @@ Models are automatically downloaded from HuggingFace Hub on first use:
 ## Project Structure
 
 ```
-vibetube/
-├── app/              # Shared React frontend
-│   └── src/
-│       ├── components/   # UI components
-│       ├── lib/          # Utilities and API client
-│       └── hooks/        # React hooks
-├── backend/          # Python FastAPI server
-│   ├── main.py       # API routes
-│   ├── tts.py        # Voice synthesis
-│   └── database.py   # SQLite operations
-├── tauri/            # Desktop app wrapper
-│   └── src-tauri/    # Rust backend
-├── web/              # Web deployment
-├── landing/          # Marketing website
-└── scripts/          # Build & release scripts
+VibeTube/
+â”œâ”€â”€ app/              # Shared React frontend
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ components/   # UI components
+â”‚       â”œâ”€â”€ lib/          # Utilities and API client
+â”‚       â””â”€â”€ hooks/        # React hooks
+â”œâ”€â”€ backend/          # Python FastAPI server
+â”‚   â”œâ”€â”€ main.py       # API routes
+â”‚   â”œâ”€â”€ tts.py        # Voice synthesis
+â”‚   â””â”€â”€ database.py   # SQLite operations
+â”œâ”€â”€ tauri/            # Desktop app wrapper
+â”‚   â””â”€â”€ src-tauri/    # Rust backend
+â”œâ”€â”€ web/              # Web deployment
+â”œâ”€â”€ landing/          # Marketing website
+â””â”€â”€ scripts/          # Build & release scripts
 ```
 
 ## Available Make Commands

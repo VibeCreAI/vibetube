@@ -1,9 +1,9 @@
----
+﻿---
 title: "Troubleshooting"
-description: "Common issues and solutions for Vibetube"
+description: "Common issues and solutions for VibeTube"
 ---
 
-This guide covers common issues you might encounter when using or developing Vibetube, along with solutions.
+This guide covers common issues you might encounter when using or developing VibeTube, along with solutions.
 
 ## Installation Issues
 
@@ -14,7 +14,7 @@ This occurs because the app isn't signed with an Apple Developer certificate.
 **Solution:**
 ```bash
 # Remove the quarantine attribute
-xattr -cr /Applications/Vibetube.app
+xattr -cr /Applications/VibeTube.app
 ```
 
 ### Windows: SmartScreen Warning
@@ -66,7 +66,7 @@ Windows SmartScreen may warn that the app is unrecognized.
 
     ```bash
     # macOS/Linux
-    chmod +x ~/Library/Application\ Support/com.vibetube.app/backend/vibetube-server
+    chmod +x ~/Library/Application\ Support/com.VibeTube.app/backend/VibeTube-server
     ```
   </Accordion>
 
@@ -75,12 +75,12 @@ Windows SmartScreen may warn that the app is unrecognized.
 
     **macOS:**
     ```bash
-    tail -f ~/Library/Application\ Support/com.vibetube.app/logs/server.log
+    tail -f ~/Library/Application\ Support/com.VibeTube.app/logs/server.log
     ```
 
     **Windows:**
     ```bash
-    type %APPDATA%\com.vibetube.app\logs\server.log
+    type %APPDATA%\com.VibeTube.app\logs\server.log
     ```
   </Accordion>
 </AccordionGroup>
@@ -155,13 +155,13 @@ This is expected behavior. The first generation downloads the Qwen3-TTS model (~
     - Video editors
     - Multiple browser tabs with WebGL
 
-    Then restart Vibetube.
+    Then restart VibeTube.
   </Accordion>
 
   <Accordion title="Use CPU Mode">
     If your GPU doesn't have enough VRAM (need 6GB+), use CPU mode:
 
-    Settings → Generation → Use CPU instead of GPU
+    Settings â†’ Generation â†’ Use CPU instead of GPU
 
     <Warning>
       CPU generation is 5-10x slower but uses system RAM instead of VRAM.
@@ -306,12 +306,12 @@ bun run tauri build
 - SQLite lock errors
 
 **Solutions:**
-- Close all Vibetube instances
+- Close all VibeTube instances
 - Delete the lock file:
   ```bash
   # macOS
-  rm ~/Library/Application\ Support/com.vibetube.app/data/vibetube.db-shm
-  rm ~/Library/Application\ Support/com.vibetube.app/data/vibetube.db-wal
+  rm ~/Library/Application\ Support/com.VibeTube.app/data/VibeTube.db-shm
+  rm ~/Library/Application\ Support/com.VibeTube.app/data/VibeTube.db-wal
   ```
 
 ### Corrupted Database
@@ -328,10 +328,10 @@ bun run tauri build
 
 ```bash
 # macOS
-rm ~/Library/Application\ Support/com.vibetube.app/data/vibetube.db
+rm ~/Library/Application\ Support/com.VibeTube.app/data/VibeTube.db
 
 # Windows
-del %APPDATA%\com.vibetube.app\data\vibetube.db
+del %APPDATA%\com.VibeTube.app\data\VibeTube.db
 ```
 
 Restart the app to create a fresh database.
@@ -387,9 +387,9 @@ rmdir /s %USERPROFILE%\.cache\huggingface\hub\models--Qwen*
   </Accordion>
 
   <Accordion title="Check GPU Selection">
-    If you have multiple GPUs, ensure Vibetube is using the right one.
+    If you have multiple GPUs, ensure VibeTube is using the right one.
 
-    Settings → Generation → GPU Device
+    Settings â†’ Generation â†’ GPU Device
   </Accordion>
 
   <Accordion title="Update GPU Drivers">
@@ -447,21 +447,21 @@ rmdir /s %USERPROFILE%\.cache\huggingface\hub\models--Qwen*
 
 If you're still experiencing problems:
 
-1. **Check GitHub Issues:** [github.com/jamiepine/vibetube/issues](https://github.com/jamiepine/vibetube/issues)
+1. **Check GitHub Issues:** [github.com/jamiepine/VibeTube/issues](https://github.com/jamiepine/VibeTube/issues)
 2. **Open a New Issue:** Provide:
    - Operating system and version
-   - Vibetube version
+   - VibeTube version
    - Steps to reproduce
    - Error messages or logs
-3. **Join Discord:** [discord.gg/vibetube](https://discord.gg/vibetube) (coming soon)
+3. **Join Discord:** [discord.gg/VibeTube](https://discord.gg/VibeTube) (coming soon)
 
 ## Diagnostic Information
 
 When reporting issues, include this information:
 
 ```bash
-# Vibetube version
-# Check Help → About in the app
+# VibeTube version
+# Check Help â†’ About in the app
 
 # Operating system
 uname -a  # macOS/Linux
@@ -474,4 +474,4 @@ python --version
 nvidia-smi  # NVIDIA GPUs
 ```
 
-For more detailed troubleshooting, see the [TROUBLESHOOTING.md](https://github.com/jamiepine/vibetube/blob/main/docs/TROUBLESHOOTING.md) file in the repository.
+For more detailed troubleshooting, see the [TROUBLESHOOTING.md](https://github.com/jamiepine/VibeTube/blob/main/docs/TROUBLESHOOTING.md) file in the repository.

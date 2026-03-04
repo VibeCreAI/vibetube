@@ -1,8 +1,8 @@
-<p align="center">
-  <img src=".github/assets/icon-dark.webp" alt="Vibetube" width="120" height="120" />
+﻿<p align="center">
+  <img src=".github/assets/icon-dark.webp" alt="VibeTube" width="120" height="120" />
 </p>
 
-<h1 align="center">Vibetube</h1>
+<h1 align="center">VibeTube</h1>
 
 <p align="center">
   <strong>The open-source voice synthesis studio.</strong><br/>
@@ -11,64 +11,64 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jamiepine/vibetube/releases">
-    <img src="https://img.shields.io/github/downloads/jamiepine/vibetube/total?style=flat&color=blue" alt="Downloads" />
+  <a href="https://github.com/jamiepine/VibeTube/releases">
+    <img src="https://img.shields.io/github/downloads/jamiepine/VibeTube/total?style=flat&color=blue" alt="Downloads" />
   </a>
-  <a href="https://github.com/jamiepine/vibetube/releases/latest">
-    <img src="https://img.shields.io/github/v/release/jamiepine/vibetube?style=flat" alt="Release" />
+  <a href="https://github.com/jamiepine/VibeTube/releases/latest">
+    <img src="https://img.shields.io/github/v/release/jamiepine/VibeTube?style=flat" alt="Release" />
   </a>
-  <a href="https://github.com/jamiepine/vibetube/stargazers">
-    <img src="https://img.shields.io/github/stars/jamiepine/vibetube?style=flat" alt="Stars" />
+  <a href="https://github.com/jamiepine/VibeTube/stargazers">
+    <img src="https://img.shields.io/github/stars/jamiepine/VibeTube?style=flat" alt="Stars" />
   </a>
-  <a href="https://github.com/jamiepine/vibetube/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/jamiepine/vibetube?style=flat" alt="License" />
+  <a href="https://github.com/jamiepine/VibeTube/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/jamiepine/VibeTube?style=flat" alt="License" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://vibetube.sh">vibetube.sh</a> •
-  <a href="#download">Download</a> •
-  <a href="#features">Features</a> •
-  <a href="#api">API</a> •
+  <a href="https://VibeTube.sh">VibeTube.sh</a> â€¢
+  <a href="#download">Download</a> â€¢
+  <a href="#features">Features</a> â€¢
+  <a href="#api">API</a> â€¢
   <a href="#roadmap">Roadmap</a>
 </p>
 
 <br/>
 
 <p align="center">
-  <a href="https://vibetube.sh">
-    <img src="landing/public/assets/app-screenshot-1.webp" alt="Vibetube App Screenshot" width="800" />
+  <a href="https://VibeTube.sh">
+    <img src="landing/public/assets/app-screenshot-1.webp" alt="VibeTube App Screenshot" width="800" />
   </a>
 </p>
 
 <p align="center">
-  <em>Click the image above to watch the demo video on <a href="https://vibetube.sh">vibetube.sh</a></em>
+  <em>Click the image above to watch the demo video on <a href="https://VibeTube.sh">VibeTube.sh</a></em>
 </p>
 
 <br/>
 
 <p align="center">
-  <img src="landing/public/assets/app-screenshot-2.webp" alt="Vibetube Screenshot 2" width="800" />
+  <img src="landing/public/assets/app-screenshot-2.webp" alt="VibeTube Screenshot 2" width="800" />
 </p>
 
 <p align="center">
-  <img src="landing/public/assets/app-screenshot-3.webp" alt="Vibetube Screenshot 3" width="800" />
+  <img src="landing/public/assets/app-screenshot-3.webp" alt="VibeTube Screenshot 3" width="800" />
 </p>
 
 <br/>
 
-## What is Vibetube?
+## What is VibeTube?
 
-Vibetube is a **local-first voice cloning studio** with DAW-like features for professional voice synthesis. Think of it as a **local, free and open-source alternative to ElevenLabs** — download models, clone voices, and generate speech entirely on your machine.
+VibeTube is a **local-first voice cloning studio** with DAW-like features for professional voice synthesis. Think of it as a **local, free and open-source alternative to ElevenLabs** â€” download models, clone voices, and generate speech entirely on your machine.
 
-Unlike cloud services that lock your voice data behind subscriptions, Vibetube gives you:
+Unlike cloud services that lock your voice data behind subscriptions, VibeTube gives you:
 
-- **Complete privacy** — models and voice data stay on your machine
-- **Professional tools** — multi-track timeline editor, audio trimming, conversation mixing
-- **Model flexibility** — currently powered by Qwen3-TTS, with support for XTTS, Bark, and other models coming soon
-- **API-first** — use the desktop app or integrate voice synthesis into your own projects
-- **Native performance** — built with Tauri (Rust), not Electron
-- **Super fast on Mac** — MLX backend with native Metal acceleration for 4-5x faster inference on Apple Silicon
+- **Complete privacy** â€” models and voice data stay on your machine
+- **Professional tools** â€” multi-track timeline editor, audio trimming, conversation mixing
+- **Model flexibility** â€” currently powered by Qwen3-TTS, with support for XTTS, Bark, and other models coming soon
+- **API-first** â€” use the desktop app or integrate voice synthesis into your own projects
+- **Native performance** â€” built with Tauri (Rust), not Electron
+- **Super fast on Mac** â€” MLX backend with native Metal acceleration for 4-5x faster inference on Apple Silicon
 
 Download a voice model, clone any voice from a few seconds of audio, and compose multi-voice projects with studio-grade editing tools. No Python install required, no cloud dependency, no limits.
 
@@ -76,16 +76,16 @@ Download a voice model, clone any voice from a few seconds of audio, and compose
 
 ## Download
 
-Vibetube is available now for macOS and Windows.
+VibeTube is available now for macOS and Windows.
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Vibetube_aarch64.app.tar.gz](https://github.com/jamiepine/vibetube/releases/latest/download/Vibetube_aarch64.app.tar.gz) |
-| macOS (Intel) | [Vibetube_x64.app.tar.gz](https://github.com/jamiepine/vibetube/releases/latest/download/Vibetube_x64.app.tar.gz) |
-| Windows (MSI) | [Latest Windows MSI](https://github.com/jamiepine/vibetube/releases/latest) |
-| Windows (Setup) | [Latest Windows Setup](https://github.com/jamiepine/vibetube/releases/latest) |
+| macOS (Apple Silicon) | [VibeTube_aarch64.app.tar.gz](https://github.com/jamiepine/VibeTube/releases/latest/download/VibeTube_aarch64.app.tar.gz) |
+| macOS (Intel) | [VibeTube_x64.app.tar.gz](https://github.com/jamiepine/VibeTube/releases/latest/download/VibeTube_x64.app.tar.gz) |
+| Windows (MSI) | [Latest Windows MSI](https://github.com/jamiepine/VibeTube/releases/latest) |
+| Windows (Setup) | [Latest Windows Setup](https://github.com/jamiepine/VibeTube/releases/latest) |
 
-> **Linux builds coming soon** — Currently blocked by GitHub runner disk space limitations.
+> **Linux builds coming soon** â€” Currently blocked by GitHub runner disk space limitations.
 
 ---
 
@@ -93,39 +93,39 @@ Vibetube is available now for macOS and Windows.
 
 ### Voice Cloning with Qwen3-TTS
 
-Powered by Alibaba's **Qwen3-TTS** — a breakthrough model that achieves near-perfect voice cloning from just a few seconds of audio.
+Powered by Alibaba's **Qwen3-TTS** â€” a breakthrough model that achieves near-perfect voice cloning from just a few seconds of audio.
 
-- **Instant cloning** — Upload a sample, get a voice profile
-- **High fidelity** — Natural prosody, emotion, and cadence
-- **Multi-language** — English, Chinese, and more coming
-- **Lightning fast on Mac** — MLX backend leverages Apple Silicon's Neural Engine for super fast generation
+- **Instant cloning** â€” Upload a sample, get a voice profile
+- **High fidelity** â€” Natural prosody, emotion, and cadence
+- **Multi-language** â€” English, Chinese, and more coming
+- **Lightning fast on Mac** â€” MLX backend leverages Apple Silicon's Neural Engine for super fast generation
 
 ### Voice Profile Management
 
 - **Create profiles** from audio files or record directly in-app
 - **Import/Export** profiles to share or backup
-- **Multi-sample support** — combine multiple samples for higher quality cloning
+- **Multi-sample support** â€” combine multiple samples for higher quality cloning
 - **Organize** with descriptions and language tags
 
 ### Speech Generation
 
 - **Text-to-speech** with any cloned voice
 - **Batch generation** for long-form content
-- **Smart caching** — regenerate instantly with voice prompt caching
+- **Smart caching** â€” regenerate instantly with voice prompt caching
 
 ### Stories Editor
 
 Create multi-voice narratives, podcasts, and conversations with a timeline-based editor.
 
-- **Multi-track composition** — arrange multiple voice tracks in a single project
-- **Inline audio editing** — trim and split clips directly in the timeline
-- **Auto-playback** — preview stories with synchronized playhead
-- **Voice mixing** — build conversations with multiple participants
+- **Multi-track composition** â€” arrange multiple voice tracks in a single project
+- **Inline audio editing** â€” trim and split clips directly in the timeline
+- **Auto-playback** â€” preview stories with synchronized playhead
+- **Voice mixing** â€” build conversations with multiple participants
 
 ### Recording & Transcription
 
 - **In-app recording** with waveform visualization
-- **System audio capture** — record desktop audio on macOS and Windows
+- **System audio capture** â€” record desktop audio on macOS and Windows
 - **Automatic transcription** powered by Whisper
 - **Export recordings** in multiple formats
 
@@ -137,15 +137,15 @@ Create multi-voice narratives, podcasts, and conversations with a timeline-based
 
 ### Flexible Deployment
 
-- **Local mode** — Everything runs on your machine
-- **Remote mode** — Connect to a GPU server on your network
-- **One-click server** — Turn any machine into a Vibetube server
+- **Local mode** â€” Everything runs on your machine
+- **Remote mode** â€” Connect to a GPU server on your network
+- **One-click server** â€” Turn any machine into a VibeTube server
 
 ---
 
 ## API
 
-Vibetube exposes a full REST API, so you can integrate voice synthesis into your own apps.
+VibeTube exposes a full REST API, so you can integrate voice synthesis into your own apps.
 
 ```bash
 # Generate speech
@@ -190,15 +190,15 @@ Full API documentation available at `http://localhost:8000/docs` when running.
 
 **Why this stack?**
 
-- **Tauri over Electron** — 10x smaller bundle, native performance, lower memory
-- **FastAPI** — Async Python with automatic OpenAPI schema generation
-- **Type-safe end-to-end** — Generated TypeScript client from OpenAPI spec
+- **Tauri over Electron** â€” 10x smaller bundle, native performance, lower memory
+- **FastAPI** â€” Async Python with automatic OpenAPI schema generation
+- **Type-safe end-to-end** â€” Generated TypeScript client from OpenAPI spec
 
 ---
 
 ## Roadmap
 
-Vibetube is the beginning of something bigger. Here's what's coming:
+VibeTube is the beginning of something bigger. Here's what's coming:
 
 ### Coming Soon
 
@@ -212,12 +212,12 @@ Vibetube is the beginning of something bigger. Here's what's coming:
 
 ### Future Vision
 
-- **Voice Design** — Create new voices from text descriptions
-- **Project System** — Save and load complex multi-voice sessions
-- **Plugin Architecture** — Extend with custom models and effects
-- **Mobile Companion** — Control Vibetube from your phone
+- **Voice Design** â€” Create new voices from text descriptions
+- **Project System** â€” Save and load complex multi-voice sessions
+- **Plugin Architecture** â€” Extend with custom models and effects
+- **Mobile Companion** â€” Control VibeTube from your phone
 
-Vibetube aims to be the **one-stop shop for everything voice** — cloning, synthesis, editing, effects, and beyond.
+VibeTube aims to be the **one-stop shop for everything voice** â€” cloning, synthesis, editing, effects, and beyond.
 
 ---
 
@@ -233,8 +233,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup and contribution guide
 
 ```bash
 # Clone the repo
-git clone https://github.com/jamiepine/vibetube.git
-cd vibetube
+git clone https://github.com/jamiepine/VibeTube.git
+cd VibeTube
 
 # Setup everything
 make setup
@@ -247,8 +247,8 @@ make dev
 
 ```bash
 # Clone the repo
-git clone https://github.com/jamiepine/vibetube.git
-cd vibetube
+git clone https://github.com/jamiepine/VibeTube.git
+cd VibeTube
 
 # Install dependencies
 bun install
@@ -269,13 +269,13 @@ bun run dev
 ### Project Structure
 
 ```
-vibetube/
-├── app/              # Shared React frontend
-├── tauri/            # Desktop app (Tauri + Rust)
-├── web/              # Web deployment
-├── backend/          # Python FastAPI server
-├── landing/          # Marketing website
-└── scripts/          # Build & release scripts
+VibeTube/
+â”œâ”€â”€ app/              # Shared React frontend
+â”œâ”€â”€ tauri/            # Desktop app (Tauri + Rust)
+â”œâ”€â”€ web/              # Web deployment
+â”œâ”€â”€ backend/          # Python FastAPI server
+â”œâ”€â”€ landing/          # Marketing website
+â””â”€â”€ scripts/          # Build & release scripts
 ```
 
 ---
@@ -297,10 +297,10 @@ Found a security vulnerability? Please report it responsibly. See [SECURITY.md](
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License â€” see [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
-  <a href="https://vibetube.sh">vibetube.sh</a>
+  <a href="https://VibeTube.sh">VibeTube.sh</a>
 </p>

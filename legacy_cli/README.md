@@ -1,9 +1,9 @@
-# VibeTube
+﻿# VibeTube
 
 VibeTube is a CLI-first local rendering tool for PNGtuber overlays.
 
 Pipeline:
-- Text -> Vibetube REST TTS (`voice.wav`) OR existing WAV input.
+- Text -> VibeTube REST TTS (`voice.wav`) OR existing WAV input.
 - Lip-sync timeline via optional PyToon adapter or RMS fallback.
 - Streamed avatar frame rendering (`idle.png` / `talk.png` / optional `blink.png`).
 - Transparent WebM export (VP9 + alpha) or PNG sequence export.
@@ -12,7 +12,7 @@ Pipeline:
 ## Project Layout
 
 ```
-/vibetube
+/VibeTube
   /src
     engine/
       tts/
@@ -39,10 +39,10 @@ pip install -e .
 Requirements:
 - Python 3.10+
 - `ffmpeg` on PATH (required for `--format webm`)
-- Optional: local Vibetube server (default `http://localhost:17493`; many Vibetube installs use `http://localhost:8000`)
+- Optional: local VibeTube server (default `http://localhost:17493`; many VibeTube installs use `http://localhost:8000`)
 - Optional: `pip install .[pytoon]`
 
-If you cloned from git and want bundled managed Vibetube from submodule:
+If you cloned from git and want bundled managed VibeTube from submodule:
 
 ```bash
 git submodule update --init --recursive
@@ -62,7 +62,7 @@ git submodule update --init --recursive
 Render using existing WAV (first implementation mode):
 
 ```bash
-vibetube render \
+VibeTube render \
   --input-wav ./voice.wav \
   --text ./script.txt \
   --avatar ./avatar_pack \
@@ -73,10 +73,10 @@ vibetube render \
   --format webm
 ```
 
-Render with Vibetube TTS:
+Render with VibeTube TTS:
 
 ```bash
-vibetube render \
+VibeTube render \
   --text ./script.txt \
   --voice-profile-id <your_profile_id> \
   --avatar ./avatar_pack \
@@ -85,57 +85,57 @@ vibetube render \
   --width 512 \
   --height 512 \
   --format webm \
-  --vibetube-url http://localhost:17493
+  --VibeTube-url http://localhost:17493
 ```
 
-Managed Vibetube mode (required for text-to-speech renders):
+Managed VibeTube mode (required for text-to-speech renders):
 
 ```bash
-vibetube render \
+VibeTube render \
   --text ./script.txt \
   --voice-profile-id <your_profile_id> \
   --avatar ./avatar_pack \
   --out ./output \
-  --vibetube-url http://localhost:17493
+  --VibeTube-url http://localhost:17493
 ```
 
-When `third_party/vibetube` is present, VibeTube auto-uses:
-`python -m backend.server --host <host> --port <port>` with `third_party/vibetube` as working directory.
-If Vibetube is already running externally on the same URL, VibeTube will fail fast so startup stays app-managed.
+When `third_party/VibeTube` is present, VibeTube auto-uses:
+`python -m backend.server --host <host> --port <port>` with `third_party/VibeTube` as working directory.
+If VibeTube is already running externally on the same URL, VibeTube will fail fast so startup stays app-managed.
 
 You can also set the start command once:
 
 ```bash
-set VIBETUBE_VIBETUBE_START_COMMAND=python -m backend.server --host 127.0.0.1 --port 17493
+set VibeTube_VibeTube_START_COMMAND=python -m backend.server --host 127.0.0.1 --port 17493
 ```
 
-List Vibetube profiles:
+List VibeTube profiles:
 
 ```bash
-vibetube voices list --vibetube-url http://localhost:17493
+VibeTube voices list --VibeTube-url http://localhost:17493
 ```
 
-Create a Vibetube profile:
+Create a VibeTube profile:
 
 ```bash
-vibetube voices create --name "Sam Clone" --language en --vibetube-url http://localhost:17493
+VibeTube voices create --name "Sam Clone" --language en --VibeTube-url http://localhost:17493
 ```
 
 Create a profile and attempt sample upload:
 
 ```bash
-vibetube voices create \
+VibeTube voices create \
   --name "Sam Clone" \
   --language en \
   --sample-wav ./sample.wav \
   --sample-text "optional transcript" \
-  --vibetube-url http://localhost:17493
+  --VibeTube-url http://localhost:17493
 ```
 
 PNG sequence export:
 
 ```bash
-vibetube render --input-wav ./voice.wav --avatar ./avatar_pack --out ./output --format png
+VibeTube render --input-wav ./voice.wav --avatar ./avatar_pack --out ./output --format png
 ```
 
 ## Engine API
@@ -168,6 +168,6 @@ The CLI only parses args and calls `render_job(config)`.
 
 - Frame rendering and WebM export are streamed; full frame sets are not kept in RAM.
 - RMS lip-sync uses 10-20ms windows, smoothing, hysteresis, and hold logic to reduce flicker.
-- Vibetube failures are reported with actionable error messages.
-- Managed Vibetube mode starts a background Vibetube process and waits for API readiness.
+- VibeTube failures are reported with actionable error messages.
+- Managed VibeTube mode starts a background VibeTube process and waits for API readiness.
 

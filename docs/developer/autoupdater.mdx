@@ -1,24 +1,24 @@
----
+﻿---
 title: "Auto-Updater"
 description: "Configure and use the Tauri auto-updater"
 ---
 
 ## Overview
 
-Vibetube uses Tauri's built-in auto-updater to deliver updates to users automatically.
+VibeTube uses Tauri's built-in auto-updater to deliver updates to users automatically.
 
 ## Quick Reference
 
 For detailed setup instructions, see the existing documentation:
 
-- [AUTOUPDATER_QUICKSTART.md](https://github.com/jamiepine/vibetube/blob/main/docs/AUTOUPDATER_QUICKSTART.md)
-- [AUTOUPDATER.md](https://github.com/jamiepine/vibetube/blob/main/docs/AUTOUPDATER.md)
+- [AUTOUPDATER_QUICKSTART.md](https://github.com/jamiepine/VibeTube/blob/main/docs/AUTOUPDATER_QUICKSTART.md)
+- [AUTOUPDATER.md](https://github.com/jamiepine/VibeTube/blob/main/docs/AUTOUPDATER.md)
 
 ## How It Works
 
 The auto-updater follows a secure update process:
 
-1. **Check for Updates** - The Vibetube app periodically checks GitHub Releases for new versions
+1. **Check for Updates** - The VibeTube app periodically checks GitHub Releases for new versions
 2. **Download Update** - If a new version is found, the update package is downloaded
 3. **Verify Signature** - The downloaded package is cryptographically verified using the public key
 4. **Install** - After verification, the update is installed
@@ -33,7 +33,7 @@ Updates are configured in `tauri/src-tauri/tauri.conf.json`:
   "updater": {
     "active": true,
     "endpoints": [
-      "https://github.com/jamiepine/vibetube/releases/latest/download/latest.json"
+      "https://github.com/jamiepine/VibeTube/releases/latest/download/latest.json"
     ],
     "dialog": true,
     "pubkey": "YOUR_PUBLIC_KEY"
@@ -47,7 +47,7 @@ Updates are configured in `tauri/src-tauri/tauri.conf.json`:
 # Generate signing keys
 bun run generate:keys
 
-# Keys saved to ~/.tauri/vibetube.key
+# Keys saved to ~/.tauri/VibeTube.key
 ```
 
 <Warning>
@@ -79,6 +79,6 @@ See the full documentation files for:
 - Testing updates locally
 - Troubleshooting update failures
 
-<Card title="View Full Docs" href="https://github.com/jamiepine/vibetube/tree/main/docs">
+<Card title="View Full Docs" href="https://github.com/jamiepine/VibeTube/tree/main/docs">
   Access AUTOUPDATER.md and AUTOUPDATER_QUICKSTART.md in the repository
 </Card>

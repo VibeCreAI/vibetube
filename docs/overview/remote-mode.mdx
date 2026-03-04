@@ -1,11 +1,11 @@
----
+﻿---
 title: "Remote Mode"
 description: "Connect to a GPU server for faster generation"
 ---
 
 ## Overview
 
-Remote Mode allows you to run the Vibetube backend on a separate machine (like a GPU server) while using the desktop app on your local machine.
+Remote Mode allows you to run the VibeTube backend on a separate machine (like a GPU server) while using the desktop app on your local machine.
 
 ## Use Cases
 
@@ -16,7 +16,7 @@ Remote Mode allows you to run the Vibetube backend on a separate machine (like a
 
 ## Architecture
 
-In Remote Mode, the Vibetube desktop app (running on your local machine) communicates with the backend server (running on a remote machine) via HTTP. The local app provides only the user interface, while the remote server handles all the heavy processing including the TTS models, API endpoints, and audio generation.
+In Remote Mode, the VibeTube desktop app (running on your local machine) communicates with the backend server (running on a remote machine) via HTTP. The local app provides only the user interface, while the remote server handles all the heavy processing including the TTS models, API endpoints, and audio generation.
 
 ## Setting Up Remote Mode
 
@@ -26,8 +26,8 @@ In Remote Mode, the Vibetube desktop app (running on your local machine) communi
   <Step title="Install Dependencies">
     ```bash
     # Clone the repo
-    git clone https://github.com/jamiepine/vibetube.git
-    cd vibetube/backend
+    git clone https://github.com/jamiepine/VibeTube.git
+    cd VibeTube/backend
 
     # Install Python dependencies
     pip install -r requirements.txt
@@ -60,7 +60,7 @@ In Remote Mode, the Vibetube desktop app (running on your local machine) communi
 
 <Steps>
   <Step title="Open Settings">
-    In Vibetube, go to **Settings → Server**
+    In VibeTube, go to **Settings â†’ Server**
   </Step>
 
   <Step title="Enable Remote Mode">
@@ -102,7 +102,7 @@ In Remote Mode, the Vibetube desktop app (running on your local machine) communi
 
 ```bash
 # Deploy a pod with CUDA support
-# Install Vibetube backend
+# Install VibeTube backend
 # Expose port 17493
 ```
 

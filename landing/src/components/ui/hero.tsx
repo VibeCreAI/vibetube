@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import type { ReactNode } from 'react';
@@ -21,8 +21,8 @@ export function Hero({ title, description, actions, className, showLogo = true }
           {showLogo && (
             <div className="flex lg:justify-start justify-center mb-6">
               <Image
-                src="/vibetube-logo-2.png"
-                alt="Vibetube Logo"
+                src="/VibeTube-logo-2.png"
+                alt="VibeTube Logo"
                 width={1024}
                 height={1024}
                 className="w-32 sm:w-40 md:w-48 h-auto"

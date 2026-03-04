@@ -1,6 +1,6 @@
-# Vibetube Documentation
+﻿# VibeTube Documentation
 
-This directory contains the documentation for Vibetube, built with [Mintlify](https://mintlify.com).
+This directory contains the documentation for VibeTube, built with [Mintlify](https://mintlify.com).
 
 ## Development
 
@@ -32,14 +32,14 @@ The docs will be available at `http://localhost:3000`
 
 ```
 docs/
-├── mint.json           # Mintlify configuration
-├── custom.css          # Custom styles
-├── overview/           # Getting started & feature docs
-├── guides/             # User guides
-├── api/                # API reference
-├── development/        # Developer documentation
-├── logo/               # Logo assets
-└── public/             # Static assets
+â”œâ”€â”€ mint.json           # Mintlify configuration
+â”œâ”€â”€ custom.css          # Custom styles
+â”œâ”€â”€ overview/           # Getting started & feature docs
+â”œâ”€â”€ guides/             # User guides
+â”œâ”€â”€ api/                # API reference
+â”œâ”€â”€ development/        # Developer documentation
+â”œâ”€â”€ logo/               # Logo assets
+â””â”€â”€ public/             # Static assets
 ```
 
 ### Writing Docs

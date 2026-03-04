@@ -1,11 +1,11 @@
----
+﻿---
 title: "TTS Generation"
-description: "How text-to-speech generation works in Vibetube"
+description: "How text-to-speech generation works in VibeTube"
 ---
 
 ## Overview
 
-Vibetube uses Qwen3-TTS for voice cloning and text-to-speech generation. The TTS module handles model loading, voice prompt creation, and audio synthesis.
+VibeTube uses Qwen3-TTS for voice cloning and text-to-speech generation. The TTS module handles model loading, voice prompt creation, and audio synthesis.
 
 ## Architecture
 
@@ -206,7 +206,7 @@ def unload_model(self):
 
 ### Model Switching
 
-When switching between model sizes (1.7B ↔ 0.6B):
+When switching between model sizes (1.7B â†” 0.6B):
 
 ```python
 # Unload existing model first
@@ -216,13 +216,13 @@ if self.model is not None and self._current_model_size != model_size:
 
 ## Generation Flow
 
-1. **Request** → Validate text and profile ID
-2. **Profile** → Load profile samples from database
-3. **Voice Prompt** → Create or retrieve cached prompt
-4. **Generate** → Run TTS inference
-5. **Save** → Write audio to generations directory
-6. **Record** → Create history entry in database
-7. **Response** → Return audio path and metadata
+1. **Request** â†’ Validate text and profile ID
+2. **Profile** â†’ Load profile samples from database
+3. **Voice Prompt** â†’ Create or retrieve cached prompt
+4. **Generate** â†’ Run TTS inference
+5. **Save** â†’ Write audio to generations directory
+6. **Record** â†’ Create history entry in database
+7. **Response** â†’ Return audio path and metadata
 
 ## API Endpoints
 

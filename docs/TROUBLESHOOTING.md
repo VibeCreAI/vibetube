@@ -1,16 +1,16 @@
-# Troubleshooting Guide
+﻿# Troubleshooting Guide
 
-Common issues and solutions for Vibetube.
+Common issues and solutions for VibeTube.
 
 ## Installation Issues
 
-### macOS: "Vibetube cannot be opened because it is from an unidentified developer"
+### macOS: "VibeTube cannot be opened because it is from an unidentified developer"
 
 **Solution:**
 1. Right-click the `.dmg` file
 2. Select "Open"
 3. Click "Open" in the security dialog
-4. Alternatively, go to System Settings → Privacy & Security → Allow Vibetube
+4. Alternatively, go to System Settings â†’ Privacy & Security â†’ Allow VibeTube
 
 ### Windows: "Windows protected your PC"
 
@@ -23,8 +23,8 @@ Common issues and solutions for Vibetube.
 
 **Solution:**
 ```bash
-chmod +x vibetube-*.AppImage
-./vibetube-*.AppImage
+chmod +x VibeTube-*.AppImage
+./VibeTube-*.AppImage
 ```
 
 ## Runtime Issues
@@ -46,12 +46,12 @@ chmod +x vibetube-*.AppImage
 3. **Check permissions**
    ```bash
    # macOS/Linux
-   chmod +x tauri/src-tauri/binaries/vibetube-server-*
+   chmod +x tauri/src-tauri/binaries/VibeTube-server-*
    ```
 
 4. **Check logs**
-   - macOS: Open Console.app and search for "vibetube"
-   - Linux: Check `~/.local/share/vibetube/` for logs
+   - macOS: Open Console.app and search for "VibeTube"
+   - Linux: Check `~/.local/share/VibeTube/` for logs
    - Windows: Check Event Viewer
 
 ### "Model download failed"
@@ -80,7 +80,7 @@ chmod +x vibetube-*.AppImage
 **Solutions:**
 1. **Use smaller model**
    - Switch to 0.6B model instead of 1.7B
-   - Settings → Model Management → Load 0.6B
+   - Settings â†’ Model Management â†’ Load 0.6B
 
 2. **Close other applications**
    - Free up GPU memory
@@ -120,7 +120,7 @@ chmod +x vibetube-*.AppImage
    - Ensure your system supports WAV playback
 
 2. **Try downloading audio**
-   - Right-click → Download
+   - Right-click â†’ Download
    - Play in external player
 
 3. **Check browser permissions** (web version)
@@ -132,13 +132,13 @@ chmod +x vibetube-*.AppImage
 
 **Solutions:**
 1. **Check backend type** (Apple Silicon)
-   - Check Settings → Server Status
+   - Check Settings â†’ Server Status
    - Should show "Backend: MLX" on Apple Silicon
    - If showing "Backend: PYTORCH", install MLX: `pip install -r backend/requirements-mlx.txt`
    - MLX provides 4-5x faster inference on Apple Silicon
 
 2. **Use GPU** (if available)
-   - Check Settings → Server Status
+   - Check Settings â†’ Server Status
    - Should show "GPU available: true"
    - Apple Silicon: Should show "Metal (Apple Silicon via MLX)"
    - Windows/Linux: Should show "CUDA" if GPU available
@@ -216,12 +216,12 @@ chmod +x vibetube-*.AppImage
 
 **Solutions:**
 1. **Check data directory**
-   - macOS: `~/Library/Application Support/vibetube/`
-   - Windows: `%APPDATA%/vibetube/`
-   - Linux: `~/.local/share/vibetube/`
+   - macOS: `~/Library/Application Support/VibeTube/`
+   - Windows: `%APPDATA%/VibeTube/`
+   - Linux: `~/.local/share/VibeTube/`
 
 2. **Check database**
-   - Database: `data/vibetube.db`
+   - Database: `data/VibeTube.db`
    - Ensure file exists and is readable
 
 3. **Restore from backup**
@@ -232,10 +232,10 @@ chmod +x vibetube-*.AppImage
 
 **Solutions:**
 1. **Close other instances**
-   - Ensure only one Vibetube instance is running
+   - Ensure only one VibeTube instance is running
 
 2. **Restart app**
-   - Close and reopen Vibetube
+   - Close and reopen VibeTube
 
 3. **Check file permissions**
    - Ensure database file is writable
@@ -293,7 +293,7 @@ chmod +x vibetube-*.AppImage
 2. **Create new issue**
    - Include:
      - OS and version
-     - Vibetube version
+     - VibeTube version
      - Steps to reproduce
      - Error messages/logs
      - Screenshots (if applicable)
@@ -305,4 +305,4 @@ chmod +x vibetube-*.AppImage
 
 ---
 
-For more help, open an issue on [GitHub](https://github.com/jamiepine/vibetube/issues).
+For more help, open an issue on [GitHub](https://github.com/jamiepine/VibeTube/issues).

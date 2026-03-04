@@ -1,11 +1,11 @@
----
+﻿---
 title: "Building"
-description: "Build Vibetube for production"
+description: "Build VibeTube for production"
 ---
 
 ## Overview
 
-Vibetube uses a multi-step build process to create platform-specific installers.
+VibeTube uses a multi-step build process to create platform-specific installers.
 
 ## Quick Build
 
@@ -30,10 +30,10 @@ The build process consists of two steps, but `bun run build` handles both automa
 The Python backend is compiled into a standalone executable using PyInstaller. This happens automatically when you run `bun run build`.
 
 **Platform-specific binaries:**
-- macOS (Apple Silicon): `vibetube-server-aarch64-apple-darwin` (includes MLX backend)
-- macOS (Intel): `vibetube-server-x86_64-apple-darwin` (PyTorch backend)
-- Windows: `vibetube-server-x86_64-pc-windows-msvc.exe` (PyTorch backend)
-- Linux: `vibetube-server-x86_64-unknown-linux-gnu` (PyTorch backend)
+- macOS (Apple Silicon): `VibeTube-server-aarch64-apple-darwin` (includes MLX backend)
+- macOS (Intel): `VibeTube-server-x86_64-apple-darwin` (PyTorch backend)
+- Windows: `VibeTube-server-x86_64-pc-windows-msvc.exe` (PyTorch backend)
+- Linux: `VibeTube-server-x86_64-unknown-linux-gnu` (PyTorch backend)
 
 <Note>
   The build script automatically detects your platform and includes the appropriate backend (MLX for Apple Silicon, PyTorch for others).
@@ -122,7 +122,7 @@ Edit `tauri/src-tauri/tauri.conf.json`:
 ```json
 {
   "bundle": {
-    "identifier": "com.vibetube.app",
+    "identifier": "com.VibeTube.app",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -142,7 +142,7 @@ The Python server is bundled as a sidecar:
   "tauri": {
     "bundle": {
       "externalBin": [
-        "binaries/vibetube-server"
+        "binaries/VibeTube-server"
       ]
     }
   }
@@ -245,12 +245,12 @@ See [CONTRIBUTING.md](/development/contributing) for the full release workflow.
 
     **macOS:**
     ```bash
-    tail -f ~/Library/Application\ Support/com.vibetube.app/logs/server.log
+    tail -f ~/Library/Application\ Support/com.VibeTube.app/logs/server.log
     ```
 
     **Windows:**
     ```bash
-    type %APPDATA%\com.vibetube.app\logs\server.log
+    type %APPDATA%\com.VibeTube.app\logs\server.log
     ```
   </Accordion>
 </AccordionGroup>
@@ -267,4 +267,4 @@ on:
       - 'v*'
 ```
 
-See the [repository](https://github.com/jamiepine/vibetube) for the full CI/CD configuration.
+See the [repository](https://github.com/jamiepine/VibeTube) for the full CI/CD configuration.

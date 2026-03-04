@@ -1,11 +1,11 @@
----
+﻿---
 title: "Voice Profiles"
-description: "How voice profile management works in Vibetube"
+description: "How voice profile management works in VibeTube"
 ---
 
 ## Overview
 
-Voice profiles are the foundation of Vibetube's voice cloning capability. Each profile stores reference audio samples and metadata that the TTS model uses to clone a voice.
+Voice profiles are the foundation of VibeTube's voice cloning capability. Each profile stores reference audio samples and metadata that the TTS model uses to clone a voice.
 
 ## Architecture
 
@@ -51,11 +51,11 @@ Profiles are stored in the data directory:
 
 ```
 data/
-└── profiles/
-    └── {profile_id}/
-        ├── {sample_id_1}.wav
-        ├── {sample_id_2}.wav
-        └── ...
+â””â”€â”€ profiles/
+    â””â”€â”€ {profile_id}/
+        â”œâ”€â”€ {sample_id_1}.wav
+        â”œâ”€â”€ {sample_id_2}.wav
+        â””â”€â”€ ...
 ```
 
 ## Core Functions
@@ -160,11 +160,11 @@ Profiles can be exported as ZIP archives for sharing:
 
 ```
 profile_export.zip
-├── profile.json     # Metadata
-├── samples/
-│   ├── sample_1.wav
-│   └── sample_1.json  # Reference text
-└── ...
+â”œâ”€â”€ profile.json     # Metadata
+â”œâ”€â”€ samples/
+â”‚   â”œâ”€â”€ sample_1.wav
+â”‚   â””â”€â”€ sample_1.json  # Reference text
+â””â”€â”€ ...
 ```
 
 ## API Endpoints

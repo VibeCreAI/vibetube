@@ -1,4 +1,4 @@
-# TTS Provider Architecture
+﻿# TTS Provider Architecture
 
 **Status:** Planned for v0.1.13
 **Created:** 2025-01-31
@@ -15,51 +15,51 @@ Split the monolithic backend into modular components:
 
 This architecture solves:
 
-- ✅ GitHub 2GB release artifact limit
-- ✅ Frequent app updates without re-downloading large python binaries
-- ✅ User choice of compute backend (CPU/GPU/Cloud)
-- ✅ External provider support (OpenAI, custom servers)
-- ✅ Future extensibility
+- âœ… GitHub 2GB release artifact limit
+- âœ… Frequent app updates without re-downloading large python binaries
+- âœ… User choice of compute backend (CPU/GPU/Cloud)
+- âœ… External provider support (OpenAI, custom servers)
+- âœ… Future extensibility
 
 ---
 
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Vibetube App (Tauri + Backend)           ~150MB        │
-│  ├─ UI Layer (React)                                    │
-│  ├─ Backend (FastAPI)                                   │
-│  │  ├─ Voice Profiles                                   │
-│  │  ├─ Generation History                               │
-│  │  ├─ Audio Editing / Stories                          │
-│  │  └─ Provider Manager ◄──────────────┐                │
-│  └─ Whisper (bundled, tiny ~50MB)      │                │
-└─────────────────────────────────────────┼────────────────┘
-                                          │
-                            HTTP/IPC      │
-                                          │
-         ┌────────────────────────────────┼─────────────────┐
-         │                                │                 │
-         ▼                                ▼                 ▼
-┌─────────────────┐      ┌─────────────────┐   ┌──────────────────┐
-│ TTS Provider:   │      │ TTS Provider:   │   │ TTS Provider:    │
-│ PyTorch CPU     │      │ PyTorch CUDA    │   │ MLX (Apple)      │
-│                 │      │                 │   │                  │
-│ ~300MB          │      │ ~2.4GB          │   │ ~800MB           │
-│                 │      │                 │   │                  │
-│ Local inference │      │ GPU inference   │   │ Metal inference  │
-└─────────────────┘      └─────────────────┘   └──────────────────┘
-         │                        │                     │
-         └────────────────────────┴─────────────────────┘
-                                  │
-                    ┌─────────────▼──────────────┐
-                    │  Future Providers:         │
-                    │  • Remote Server           │
-                    │  • OpenAI API              │
-                    │  • ElevenLabs              │
-                    │  • Custom Docker Container │
-                    └────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  VibeTube App (Tauri + Backend)           ~150MB        â”‚
+â”‚  â”œâ”€ UI Layer (React)                                    â”‚
+â”‚  â”œâ”€ Backend (FastAPI)                                   â”‚
+â”‚  â”‚  â”œâ”€ Voice Profiles                                   â”‚
+â”‚  â”‚  â”œâ”€ Generation History                               â”‚
+â”‚  â”‚  â”œâ”€ Audio Editing / Stories                          â”‚
+â”‚  â”‚  â””â”€ Provider Manager â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                â”‚
+â”‚  â””â”€ Whisper (bundled, tiny ~50MB)      â”‚                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                          â”‚
+                            HTTP/IPC      â”‚
+                                          â”‚
+         â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+         â”‚                                â”‚                 â”‚
+         â–¼                                â–¼                 â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”      â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ TTS Provider:   â”‚      â”‚ TTS Provider:   â”‚   â”‚ TTS Provider:    â”‚
+â”‚ PyTorch CPU     â”‚      â”‚ PyTorch CUDA    â”‚   â”‚ MLX (Apple)      â”‚
+â”‚                 â”‚      â”‚                 â”‚   â”‚                  â”‚
+â”‚ ~300MB          â”‚      â”‚ ~2.4GB          â”‚   â”‚ ~800MB           â”‚
+â”‚                 â”‚      â”‚                 â”‚   â”‚                  â”‚
+â”‚ Local inference â”‚      â”‚ GPU inference   â”‚   â”‚ Metal inference  â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜      â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+         â”‚                        â”‚                     â”‚
+         â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                  â”‚
+                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                    â”‚  Future Providers:         â”‚
+                    â”‚  â€¢ Remote Server           â”‚
+                    â”‚  â€¢ OpenAI API              â”‚
+                    â”‚  â€¢ ElevenLabs              â”‚
+                    â”‚  â€¢ Custom Docker Container â”‚
+                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
@@ -74,7 +74,7 @@ This architecture solves:
 - CUDA version: ~2.37GB
 - GitHub releases: 2GB file size limit (BLOCKED)
 - Updates require re-downloading entire binary
-- Poor UX: update app → restart → download CUDA update → restart again
+- Poor UX: update app â†’ restart â†’ download CUDA update â†’ restart again
 
 **User Pain Points:**
 
@@ -89,7 +89,7 @@ This architecture solves:
 
 ### Component Breakdown
 
-#### 1. Main App (vibetube.exe / .app / .AppImage)
+#### 1. Main App (VibeTube.exe / .app / .AppImage)
 
 **Size:** ~100-150MB
 
@@ -445,7 +445,7 @@ class ProviderInstaller:
             "mlx": "tts-provider-mlx"
         }[provider_type]
 
-        download_url = f"https://downloads.vibetube.sh/providers/v{PROVIDER_VERSION}/{binary_name}"
+        download_url = f"https://downloads.VibeTube.sh/providers/v{PROVIDER_VERSION}/{binary_name}"
 
         # Download with progress tracking (reuse existing SSE system)
         await download_with_progress(
@@ -457,9 +457,9 @@ class ProviderInstaller:
 
 **Provider Storage Location:**
 
-- Windows: `%APPDATA%/vibetube/providers/`
-- macOS: `~/Library/Application Support/vibetube/providers/`
-- Linux: `~/.local/share/vibetube/providers/`
+- Windows: `%APPDATA%/VibeTube/providers/`
+- macOS: `~/Library/Application Support/VibeTube/providers/`
+- Linux: `~/.local/share/VibeTube/providers/`
 
 ---
 
@@ -482,7 +482,7 @@ export function ProviderSettings() {
 		<Card>
 			<CardHeader>
 				<CardTitle>TTS Provider</CardTitle>
-				<CardDescription>Choose how Vibetube generates speech</CardDescription>
+				<CardDescription>Choose how VibeTube generates speech</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<RadioGroup
@@ -606,49 +606,49 @@ export function ProviderSettings() {
 ## File Structure
 
 ```
-vibetube/
-├── backend/
-│   ├── main.py                    # Main FastAPI app (no TTS code)
-│   ├── providers/
-│   │   ├── __init__.py            # ProviderManager
-│   │   ├── base.py                # TTSProvider ABC
-│   │   ├── local.py               # LocalProvider (subprocess)
-│   │   ├── remote.py              # RemoteProvider (HTTP)
-│   │   ├── openai.py              # OpenAIProvider (API wrapper)
-│   │   └── installer.py           # Provider download logic
-│   ├── profiles.py                # Voice profile management
-│   ├── history.py                 # Generation history
-│   ├── transcribe.py              # Whisper (still bundled)
-│   └── ... (other backend modules)
-│
-├── providers/
-│   ├── pytorch-cpu/
-│   │   ├── main.py                # FastAPI server for TTS
-│   │   ├── tts_backend.py         # PyTorch TTS logic
-│   │   ├── requirements.txt       # torch (CPU), qwen-tts, transformers
-│   │   └── build.spec             # PyInstaller spec
-│   │
-│   ├── pytorch-cuda/
-│   │   ├── main.py                # FastAPI server for TTS
-│   │   ├── tts_backend.py         # PyTorch TTS logic
-│   │   ├── requirements.txt       # torch+cu121, qwen-tts, transformers
-│   │   └── build.spec             # PyInstaller spec
-│   │
-│   └── mlx/
-│       ├── main.py                # FastAPI server for TTS
-│       ├── mlx_backend.py         # MLX TTS logic
-│       ├── requirements.txt       # mlx, qwen-tts-mlx
-│       └── build.spec             # PyInstaller spec
-│
-├── app/                           # Frontend (Tauri + React)
-│   └── src/
-│       └── components/
-│           └── ServerSettings/
-│               └── ProviderSettings.tsx
-│
-└── tauri/
-    └── src-tauri/
-        └── tauri.conf.json        # No externalBin for providers
+VibeTube/
+â”œâ”€â”€ backend/
+â”‚   â”œâ”€â”€ main.py                    # Main FastAPI app (no TTS code)
+â”‚   â”œâ”€â”€ providers/
+â”‚   â”‚   â”œâ”€â”€ __init__.py            # ProviderManager
+â”‚   â”‚   â”œâ”€â”€ base.py                # TTSProvider ABC
+â”‚   â”‚   â”œâ”€â”€ local.py               # LocalProvider (subprocess)
+â”‚   â”‚   â”œâ”€â”€ remote.py              # RemoteProvider (HTTP)
+â”‚   â”‚   â”œâ”€â”€ openai.py              # OpenAIProvider (API wrapper)
+â”‚   â”‚   â””â”€â”€ installer.py           # Provider download logic
+â”‚   â”œâ”€â”€ profiles.py                # Voice profile management
+â”‚   â”œâ”€â”€ history.py                 # Generation history
+â”‚   â”œâ”€â”€ transcribe.py              # Whisper (still bundled)
+â”‚   â””â”€â”€ ... (other backend modules)
+â”‚
+â”œâ”€â”€ providers/
+â”‚   â”œâ”€â”€ pytorch-cpu/
+â”‚   â”‚   â”œâ”€â”€ main.py                # FastAPI server for TTS
+â”‚   â”‚   â”œâ”€â”€ tts_backend.py         # PyTorch TTS logic
+â”‚   â”‚   â”œâ”€â”€ requirements.txt       # torch (CPU), qwen-tts, transformers
+â”‚   â”‚   â””â”€â”€ build.spec             # PyInstaller spec
+â”‚   â”‚
+â”‚   â”œâ”€â”€ pytorch-cuda/
+â”‚   â”‚   â”œâ”€â”€ main.py                # FastAPI server for TTS
+â”‚   â”‚   â”œâ”€â”€ tts_backend.py         # PyTorch TTS logic
+â”‚   â”‚   â”œâ”€â”€ requirements.txt       # torch+cu121, qwen-tts, transformers
+â”‚   â”‚   â””â”€â”€ build.spec             # PyInstaller spec
+â”‚   â”‚
+â”‚   â””â”€â”€ mlx/
+â”‚       â”œâ”€â”€ main.py                # FastAPI server for TTS
+â”‚       â”œâ”€â”€ mlx_backend.py         # MLX TTS logic
+â”‚       â”œâ”€â”€ requirements.txt       # mlx, qwen-tts-mlx
+â”‚       â””â”€â”€ build.spec             # PyInstaller spec
+â”‚
+â”œâ”€â”€ app/                           # Frontend (Tauri + React)
+â”‚   â””â”€â”€ src/
+â”‚       â””â”€â”€ components/
+â”‚           â””â”€â”€ ServerSettings/
+â”‚               â””â”€â”€ ProviderSettings.tsx
+â”‚
+â””â”€â”€ tauri/
+    â””â”€â”€ src-tauri/
+        â””â”€â”€ tauri.conf.json        # No externalBin for providers
 ```
 
 ---
@@ -692,7 +692,7 @@ vibetube/
 1. Exclude PyTorch/Qwen3-TTS from main app PyInstaller spec
 2. Main app now requires provider download
 3. Update GitHub CI to build multiple artifacts:
-   - `vibetube-{version}-{platform}.exe` (~150MB)
+   - `VibeTube-{version}-{platform}.exe` (~150MB)
    - `tts-provider-pytorch-cpu-{version}.exe`
    - `tts-provider-pytorch-cuda-{version}.exe`
    - `tts-provider-mlx-{version}` (macOS)
@@ -760,7 +760,7 @@ async def check_provider_compatibility(provider_version: str) -> bool:
 **UI shows warning if incompatible:**
 
 ```
-⚠️ Provider version 0.9.0 is outdated. Update to v1.0.0+
+âš ï¸ Provider version 0.9.0 is outdated. Update to v1.0.0+
 ```
 
 ---
@@ -769,24 +769,24 @@ async def check_provider_compatibility(provider_version: str) -> bool:
 
 ### First-Time Setup
 
-1. User downloads and installs Vibetube (~150MB)
-2. App launches → detects no TTS provider installed
+1. User downloads and installs VibeTube (~150MB)
+2. App launches â†’ detects no TTS provider installed
 3. Shows setup wizard:
 
    ```
    Choose your TTS provider:
 
    [ ] PyTorch CUDA (2.4GB)    [Download]
-       ✓ Fastest on NVIDIA GPUs
-       ✗ Requires NVIDIA GPU
+       âœ“ Fastest on NVIDIA GPUs
+       âœ— Requires NVIDIA GPU
 
-   [●] PyTorch CPU (300MB)     [Download]
-       ✓ Works on any system
-       ✗ Slower inference
+   [â—] PyTorch CPU (300MB)     [Download]
+       âœ“ Works on any system
+       âœ— Slower inference
 
    [ ] MLX (800MB)             [Download]
-       ✓ Fast on Apple Silicon
-       ✗ macOS only (M1/M2/M3)
+       âœ“ Fast on Apple Silicon
+       âœ— macOS only (M1/M2/M3)
 
    [ ] Remote Server
        URL: ___________________
@@ -795,9 +795,9 @@ async def check_provider_compatibility(provider_version: str) -> bool:
        API Key: ________________
    ```
 
-4. User selects provider → downloads with progress bar
+4. User selects provider â†’ downloads with progress bar
 5. Provider installs to AppData/Application Support
-6. App starts provider → ready to use
+6. App starts provider â†’ ready to use
 
 ---
 
@@ -805,7 +805,7 @@ async def check_provider_compatibility(provider_version: str) -> bool:
 
 **Scenario:** Bug fix in UI, no backend changes
 
-1. User gets update notification: "Vibetube v0.2.1 available"
+1. User gets update notification: "VibeTube v0.2.1 available"
 2. Downloads update (~150MB, not 2.4GB!)
 3. Installs and restarts
 4. **Provider stays the same** (no re-download needed)
@@ -819,7 +819,7 @@ async def check_provider_compatibility(provider_version: str) -> bool:
 
 **Scenario:** New Qwen3-TTS model version released
 
-1. User opens Settings → Provider tab
+1. User opens Settings â†’ Provider tab
 2. Sees notification: "Provider update available (v1.1.0)"
 3. Clicks "Update Provider"
 4. Downloads new provider binary
@@ -834,10 +834,10 @@ async def check_provider_compatibility(provider_version: str) -> bool:
 
 **Scenario:** User upgrades to NVIDIA GPU
 
-1. User goes to Settings → Provider
+1. User goes to Settings â†’ Provider
 2. Selects "PyTorch CUDA"
-3. Clicks "Download" → downloads 2.4GB
-4. Download completes → restarts app
+3. Clicks "Download" â†’ downloads 2.4GB
+4. Download completes â†’ restarts app
 5. App now uses CUDA provider
 
 ---
@@ -954,11 +954,11 @@ async def check_provider_compatibility(provider_version: str) -> bool:
 If you want to build a custom TTS provider:
 
 1. Implement the provider API spec (see above)
-2. Test with Vibetube locally
+2. Test with VibeTube locally
 3. Package as executable (PyInstaller, Docker, etc.)
 4. Share in GitHub Discussions
 
 **Questions?**
 
-- GitHub Issues: [vibetube/issues](https://github.com/jamiepine/vibetube/issues)
+- GitHub Issues: [VibeTube/issues](https://github.com/jamiepine/VibeTube/issues)
 - Discord: Coming soon

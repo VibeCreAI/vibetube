@@ -1,11 +1,11 @@
-# Docker Deployment Guide
+﻿# Docker Deployment Guide
 
 **Status:** In Development for v0.2.0
 **Requested By:** Reddit community ([thread](https://reddit.com/r/LocalLLaMA/...))
 
 ## Overview
 
-Docker support makes Vibetube easier to deploy, especially for:
+Docker support makes VibeTube easier to deploy, especially for:
 
 - **Consistent Environments**: Same setup across dev/staging/prod
 - **GPU Passthrough**: Easy NVIDIA/AMD GPU access
@@ -19,17 +19,17 @@ Docker support makes Vibetube easier to deploy, especially for:
 
 ```bash
 # CPU-only version
-docker run -p 8000:8000 -v vibetube-data:/app/data \
-  ghcr.io/jamiepine/vibetube:latest
+docker run -p 8000:8000 -v VibeTube-data:/app/data \
+  ghcr.io/jamiepine/VibeTube:latest
 
 # NVIDIA GPU version
-docker run --gpus all -p 8000:8000 -v vibetube-data:/app/data \
-  ghcr.io/jamiepine/vibetube:latest-cuda
+docker run --gpus all -p 8000:8000 -v VibeTube-data:/app/data \
+  ghcr.io/jamiepine/VibeTube:latest-cuda
 
 # AMD GPU version (experimental)
 docker run --device=/dev/kfd --device=/dev/dri -p 8000:8000 \
-  -v vibetube-data:/app/data \
-  ghcr.io/jamiepine/vibetube:latest-rocm
+  -v VibeTube-data:/app/data \
+  ghcr.io/jamiepine/VibeTube:latest-rocm
 ```
 
 Then open: `http://localhost:8000`
@@ -42,12 +42,12 @@ Create `docker-compose.yml`:
 version: '3.8'
 
 services:
-  vibetube:
-    image: ghcr.io/jamiepine/vibetube:latest-cuda
+  VibeTube:
+    image: ghcr.io/jamiepine/VibeTube:latest-cuda
     ports:
       - "8000:8000"
     volumes:
-      - vibetube-data:/app/data
+      - VibeTube-data:/app/data
       - huggingface-cache:/root/.cache/huggingface
     environment:
       - GPU_MEMORY_FRACTION=0.8  # Use 80% of GPU memory
@@ -62,7 +62,7 @@ services:
               capabilities: [gpu]
 
 volumes:
-  vibetube-data:
+  VibeTube-data:
   huggingface-cache:
 ```
 
@@ -108,8 +108,8 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 Build and run:
 ```bash
-docker build -t vibetube .
-docker run -p 8000:8000 -v $(pwd)/data:/app/data vibetube
+docker build -t VibeTube .
+docker run -p 8000:8000 -v $(pwd)/data:/app/data VibeTube
 ```
 
 ### Multi-Stage Build (Optimized)
@@ -160,7 +160,7 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 Build:
 ```bash
-docker build -f Dockerfile.optimized -t vibetube:slim .
+docker build -f Dockerfile.optimized -t VibeTube:slim .
 ```
 
 ## GPU Support
@@ -195,15 +195,15 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 **Run with GPU:**
 ```bash
 docker run --gpus all -p 8000:8000 \
-  -v vibetube-data:/app/data \
-  vibetube:cuda
+  -v VibeTube-data:/app/data \
+  VibeTube:cuda
 ```
 
 **Docker Compose with GPU:**
 ```yaml
 services:
-  vibetube:
-    image: vibetube:cuda
+  VibeTube:
+    image: VibeTube:cuda
     deploy:
       resources:
         reservations:
@@ -249,8 +249,8 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 docker run --device=/dev/kfd --device=/dev/dri \
   --group-add video --ipc=host --cap-add=SYS_PTRACE \
   --security-opt seccomp=unconfined \
-  -p 8000:8000 -v vibetube-data:/app/data \
-  vibetube:rocm
+  -p 8000:8000 -v VibeTube-data:/app/data \
+  VibeTube:rocm
 ```
 
 **Note:** ROCm support varies by GPU model. Works best on Linux. See [AMD ROCm docs](https://rocm.docs.amd.com) for compatibility.
@@ -260,9 +260,9 @@ docker run --device=/dev/kfd --device=/dev/dri \
 ### Essential Volumes
 
 ```bash
-docker run -v vibetube-data:/app/data \           # Profiles, generations, history
+docker run -v VibeTube-data:/app/data \           # Profiles, generations, history
            -v huggingface-cache:/root/.cache/huggingface \  # Downloaded models
-           -p 8000:8000 vibetube
+           -p 8000:8000 VibeTube
 ```
 
 ### Development Volume Mounts
@@ -271,9 +271,9 @@ For development with hot-reload:
 
 ```bash
 docker run -v $(pwd)/backend:/app/backend \       # Live code changes
-           -v vibetube-data:/app/data \
+           -v VibeTube-data:/app/data \
            -e RELOAD=true \
-           -p 8000:8000 vibetube
+           -p 8000:8000 VibeTube
 ```
 
 ### Custom Model Storage
@@ -283,13 +283,13 @@ Use external model directory:
 ```bash
 docker run -v /path/to/models:/models \
            -e MODELS_DIR=/models \
-           -v vibetube-data:/app/data \
-           -p 8000:8000 vibetube
+           -v VibeTube-data:/app/data \
+           -p 8000:8000 VibeTube
 ```
 
 ## Environment Variables
 
-Configure Vibetube via environment variables:
+Configure VibeTube via environment variables:
 
 ```bash
 docker run -e TTS_MODE=local \
@@ -297,7 +297,7 @@ docker run -e TTS_MODE=local \
            -e OPENAI_API_KEY=sk-... \
            -e GPU_MEMORY_FRACTION=0.8 \
            -e LOG_LEVEL=info \
-           -p 8000:8000 vibetube
+           -p 8000:8000 VibeTube
 ```
 
 ### Available Variables
@@ -324,14 +324,14 @@ docker run -e TTS_MODE=local \
 version: '3.8'
 
 services:
-  vibetube:
-    image: ghcr.io/jamiepine/vibetube:latest-cuda
-    container_name: vibetube
+  VibeTube:
+    image: ghcr.io/jamiepine/VibeTube:latest-cuda
+    container_name: VibeTube
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-      - vibetube-data:/app/data
+      - VibeTube-data:/app/data
       - huggingface-cache:/root/.cache/huggingface
     environment:
       - TTS_MODE=local
@@ -353,7 +353,7 @@ services:
       start_period: 40s
 
 volumes:
-  vibetube-data:
+  VibeTube-data:
     driver: local
   huggingface-cache:
     driver: local
@@ -371,7 +371,7 @@ docker compose -f docker-compose.prod.yml up -d
 version: '3.8'
 
 services:
-  vibetube:
+  VibeTube:
     build:
       context: .
       dockerfile: Dockerfile
@@ -379,7 +379,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend:ro
-      - vibetube-data:/app/data
+      - VibeTube-data:/app/data
       - huggingface-cache:/root/.cache/huggingface
     environment:
       - RELOAD=true
@@ -388,7 +388,7 @@ services:
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
-  vibetube-data:
+  VibeTube-data:
   huggingface-cache:
 ```
 
@@ -401,12 +401,12 @@ Full stack with reverse proxy and monitoring:
 version: '3.8'
 
 services:
-  # Main Vibetube app
-  vibetube:
-    image: ghcr.io/jamiepine/vibetube:latest-cuda
+  # Main VibeTube app
+  VibeTube:
+    image: ghcr.io/jamiepine/VibeTube:latest-cuda
     restart: unless-stopped
     volumes:
-      - vibetube-data:/app/data
+      - VibeTube-data:/app/data
       - huggingface-cache:/root/.cache/huggingface
     environment:
       - TTS_MODE=local
@@ -429,7 +429,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      - vibetube
+      - VibeTube
 
   # Prometheus monitoring (optional)
   prometheus:
@@ -441,7 +441,7 @@ services:
       - prometheus-data:/prometheus
 
 volumes:
-  vibetube-data:
+  VibeTube-data:
   huggingface-cache:
   prometheus-data:
 ```
@@ -466,9 +466,9 @@ volumes:
 3. **Deploy:**
    ```bash
    docker run --gpus all -d -p 80:8000 \
-     -v vibetube-data:/app/data \
+     -v VibeTube-data:/app/data \
      --restart unless-stopped \
-     ghcr.io/jamiepine/vibetube:latest-cuda
+     ghcr.io/jamiepine/VibeTube:latest-cuda
    ```
 
 ### DigitalOcean
@@ -477,7 +477,7 @@ Use GPU Droplet + Docker:
 
 ```bash
 # Create droplet via CLI
-doctl compute droplet create vibetube \
+doctl compute droplet create VibeTube \
   --size gpu-h100x1-80gb \
   --image ubuntu-22-04-x64 \
   --region nyc3
@@ -486,19 +486,19 @@ doctl compute droplet create vibetube \
 ssh root@<droplet-ip>
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
-docker run --gpus all -d -p 80:8000 vibetube:cuda
+docker run --gpus all -d -p 80:8000 VibeTube:cuda
 ```
 
 ### Google Cloud Run (CPU-only)
 
 ```bash
 # Build and push
-docker build -t gcr.io/your-project/vibetube .
-docker push gcr.io/your-project/vibetube
+docker build -t gcr.io/your-project/VibeTube .
+docker push gcr.io/your-project/VibeTube
 
 # Deploy to Cloud Run
-gcloud run deploy vibetube \
-  --image gcr.io/your-project/vibetube \
+gcloud run deploy VibeTube \
+  --image gcr.io/your-project/VibeTube \
   --platform managed \
   --region us-central1 \
   --memory 4Gi \
@@ -510,10 +510,10 @@ gcloud run deploy vibetube \
 
 Create `fly.toml`:
 ```toml
-app = "vibetube"
+app = "VibeTube"
 
 [build]
-  image = "ghcr.io/jamiepine/vibetube:latest"
+  image = "ghcr.io/jamiepine/VibeTube:latest"
 
 [[services]]
   http_checks = []
@@ -529,7 +529,7 @@ app = "vibetube"
     handlers = ["tls", "http"]
 
 [mounts]
-  source = "vibetube_data"
+  source = "VibeTube_data"
   destination = "/app/data"
 ```
 
@@ -560,38 +560,38 @@ docker run --rm --device=/dev/kfd --device=/dev/dri rocm/dev-ubuntu-22.04:6.0 ro
 Container can't write to volumes:
 ```bash
 # Fix permissions
-docker run --user $(id -u):$(id -g) -v $(pwd)/data:/app/data vibetube
+docker run --user $(id -u):$(id -g) -v $(pwd)/data:/app/data VibeTube
 ```
 
 ### Out of Memory
 
 Reduce GPU memory usage:
 ```bash
-docker run -e GPU_MEMORY_FRACTION=0.5 vibetube
+docker run -e GPU_MEMORY_FRACTION=0.5 VibeTube
 ```
 
 Or use CPU-only:
 ```bash
-docker run -e DEVICE=cpu vibetube
+docker run -e DEVICE=cpu VibeTube
 ```
 
 ### Model Download Fails
 
 Ensure HuggingFace cache is writable:
 ```bash
-docker run -v huggingface-cache:/root/.cache/huggingface vibetube
+docker run -v huggingface-cache:/root/.cache/huggingface VibeTube
 ```
 
 Or use host cache:
 ```bash
-docker run -v ~/.cache/huggingface:/root/.cache/huggingface vibetube
+docker run -v ~/.cache/huggingface:/root/.cache/huggingface VibeTube
 ```
 
 ### Port Already in Use
 
 Change host port:
 ```bash
-docker run -p 8080:8000 vibetube  # Use port 8080 instead
+docker run -p 8080:8000 VibeTube  # Use port 8080 instead
 ```
 
 ## Security Best Practices
@@ -600,8 +600,8 @@ docker run -p 8080:8000 vibetube  # Use port 8080 instead
 
 Create non-root user in Dockerfile:
 ```dockerfile
-RUN useradd -m -u 1000 vibetube
-USER vibetube
+RUN useradd -m -u 1000 VibeTube
+USER VibeTube
 ```
 
 ### 2. Use Secrets for API Keys
@@ -615,7 +615,7 @@ echo "sk-your-key" | docker secret create openai_key -
 docker service create \
   --secret openai_key \
   -e OPENAI_API_KEY_FILE=/run/secrets/openai_key \
-  vibetube
+  VibeTube
 ```
 
 ### 3. Network Isolation
@@ -624,7 +624,7 @@ Use internal networks for multi-container setups:
 
 ```yaml
 services:
-  vibetube:
+  VibeTube:
     networks:
       - internal
   nginx:
@@ -646,7 +646,7 @@ Prevent resource exhaustion:
 
 ```yaml
 services:
-  vibetube:
+  VibeTube:
     deploy:
       resources:
         limits:
@@ -663,10 +663,10 @@ services:
 
 ```bash
 # Use 80% of GPU (default 90%)
-docker run -e GPU_MEMORY_FRACTION=0.8 vibetube
+docker run -e GPU_MEMORY_FRACTION=0.8 VibeTube
 
 # Allow GPU memory growth (prevents OOM)
-docker run -e TF_FORCE_GPU_ALLOW_GROWTH=true vibetube
+docker run -e TF_FORCE_GPU_ALLOW_GROWTH=true VibeTube
 ```
 
 ### Model Caching
@@ -676,14 +676,14 @@ Pre-download models to volume:
 ```bash
 # Download models first
 docker run --rm -v huggingface-cache:/root/.cache/huggingface \
-  vibetube python -c "
+  VibeTube python -c "
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 WhisperProcessor.from_pretrained('openai/whisper-base')
 WhisperForConditionalGeneration.from_pretrained('openai/whisper-base')
 "
 
 # Then run normally
-docker run -v huggingface-cache:/root/.cache/huggingface vibetube
+docker run -v huggingface-cache:/root/.cache/huggingface VibeTube
 ```
 
 ### Multi-Worker Setup
@@ -728,10 +728,10 @@ Then scrape `/metrics` with Prometheus.
 
 View container logs:
 ```bash
-docker logs -f vibetube
+docker logs -f VibeTube
 
 # Or with compose
-docker compose logs -f vibetube
+docker compose logs -f VibeTube
 ```
 
 ## Next Steps
@@ -748,7 +748,7 @@ Help improve Docker support:
 1. Test on different platforms (AMD GPU, ARM64, etc.)
 2. Submit Dockerfile optimizations
 3. Share deployment configurations
-4. Report issues: [GitHub Issues](https://github.com/jamiepine/vibetube/issues)
+4. Report issues: [GitHub Issues](https://github.com/jamiepine/VibeTube/issues)
 
 ## Resources
 

@@ -1,6 +1,6 @@
-# Vibetube Landing Page
+﻿# VibeTube Landing Page
 
-Landing page for vibetube.sh - a modern Next.js 16 application.
+Landing page for VibeTube.sh - a modern Next.js 16 application.
 
 ## Tech Stack
 
@@ -65,28 +65,28 @@ Replace `USERNAME` in `src/lib/constants.ts` with your actual GitHub username.
    - Install dependencies with `bun install`
    - Build with `bun run build`
    - Start with `bun run start`
-5. Configure custom domain `vibetube.sh` in Railway settings
+5. Configure custom domain `VibeTube.sh` in Railway settings
 
 ## Project Structure
 
 ```
 landing/
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx      # Root layout with metadata
-│   │   ├── page.tsx        # Landing page
-│   │   └── globals.css     # Global styles
-│   ├── components/
-│   │   ├── Header.tsx      # Top navigation
-│   │   ├── Footer.tsx      # Footer
-│   │   ├── DownloadSection.tsx  # Download buttons
-│   │   └── ui/             # shadcn/ui components
-│   └── lib/
-│       ├── utils.ts        # Utility functions
-│       └── constants.ts    # App constants
-├── public/
-│   └── vibetube-logo.png   # Logo asset
-└── nixpacks.toml          # Railway deployment config
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ app/
+â”‚   â”‚   â”œâ”€â”€ layout.tsx      # Root layout with metadata
+â”‚   â”‚   â”œâ”€â”€ page.tsx        # Landing page
+â”‚   â”‚   â””â”€â”€ globals.css     # Global styles
+â”‚   â”œâ”€â”€ components/
+â”‚   â”‚   â”œâ”€â”€ Header.tsx      # Top navigation
+â”‚   â”‚   â”œâ”€â”€ Footer.tsx      # Footer
+â”‚   â”‚   â”œâ”€â”€ DownloadSection.tsx  # Download buttons
+â”‚   â”‚   â””â”€â”€ ui/             # shadcn/ui components
+â”‚   â””â”€â”€ lib/
+â”‚       â”œâ”€â”€ utils.ts        # Utility functions
+â”‚       â””â”€â”€ constants.ts    # App constants
+â”œâ”€â”€ public/
+â”‚   â””â”€â”€ VibeTube-logo.png   # Logo asset
+â””â”€â”€ nixpacks.toml          # Railway deployment config
 ```
 
 ## Features
