@@ -103,6 +103,36 @@ class VibeTubeAvatarPackResponse(BaseModel):
     complete: bool = False
 
 
+class VibeTubeAvatarPreviewResponse(BaseModel):
+    """Response model for generated (not yet applied) avatar preview states."""
+    profile_id: str
+    idle_url: Optional[str] = None
+    idle_ready: bool = False
+    talk_url: Optional[str] = None
+    idle_blink_url: Optional[str] = None
+    talk_blink_url: Optional[str] = None
+    complete: bool = False
+
+
+class VibeTubeAvatarGenerateRequest(BaseModel):
+    """Request model for auto-generating a 4-state VibeTube avatar pack."""
+    prompt: str = Field(..., min_length=1, max_length=1000)
+    seed: Optional[int] = Field(default=None, ge=0)
+    size: int = Field(default=512, ge=64, le=1024)
+    output_size: int = Field(default=512, ge=64, le=2048)
+    palette_colors: int = Field(default=64, ge=2, le=256)
+    seed_step: int = Field(default=1, ge=0, le=10_000)
+    model_id: Optional[str] = Field(default=None, max_length=300)
+    lora_id: Optional[str] = Field(default=None, max_length=300)
+    lora_scale: float = Field(default=0.85, ge=0.0, le=2.0)
+    negative_prompt: Optional[str] = Field(default=None, max_length=2000)
+    num_inference_steps: int = Field(default=24, ge=4, le=120)
+    guidance_scale: float = Field(default=7.0, ge=0.0, le=20.0)
+    variation_strength: float = Field(default=0.2, ge=0.0, le=1.0)
+    match_existing_style: bool = Field(default=True)
+    reference_strength: float = Field(default=0.2, ge=0.0, le=1.0)
+
+
 class VibeTubeJobResponse(BaseModel):
     """Response model for one saved VibeTube render job."""
     job_id: str
@@ -213,6 +243,17 @@ class ModelStatusListResponse(BaseModel):
 class ModelDownloadRequest(BaseModel):
     """Request model for triggering model download."""
     model_name: str
+
+
+class ImageModelStatusResponse(BaseModel):
+    """Response model for the bundled optional local image test model."""
+    model_name: str
+    display_name: str
+    downloaded: bool
+    downloading: bool = False
+    download_url: str
+    file_path: Optional[str] = None
+    size_bytes: Optional[int] = None
 
 
 class ActiveDownloadTask(BaseModel):

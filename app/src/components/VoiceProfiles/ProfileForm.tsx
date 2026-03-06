@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Edit2, Mic, Monitor, Upload, X } from 'lucide-react';
+import { ChevronDown, Edit2, Loader2, Mic, Monitor, Sparkles, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
+import type { ImageModelStatusResponse } from '@/lib/api/types';
 import { LANGUAGE_CODES, LANGUAGE_OPTIONS, type LanguageCode } from '@/lib/constants/languages';
 import { useAudioPlayer } from '@/lib/hooks/useAudioPlayer';
 import { useAudioRecording } from '@/lib/hooks/useAudioRecording';
@@ -88,6 +89,29 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 type AvatarStateKey = 'idle' | 'talk' | 'idle_blink' | 'talk_blink';
 type AvatarStateFiles = Record<AvatarStateKey, File | null>;
 type AvatarStatePreviews = Record<AvatarStateKey, string | null>;
+type AvatarQualityPreset = 'fast' | 'balanced' | 'high';
+
+const AVATAR_TEST_MODEL_ID = 'data/models/checkpoints/stylizedpixel_m80.safetensors';
+const AVATAR_TEST_MODEL_LABEL = 'StylizedPixel M80';
+const AVATAR_TEST_MODEL_NOTE = 'Local SD1.5 checkpoint for cleaner pixel-character portraits.';
+const AVATAR_TEST_MODEL_DOWNLOAD_URL =
+  'https://civitai.com/api/download/models/153325?type=Model&format=SafeTensor&size=full&fp=fp16';
+
+const AVATAR_STYLE_PRESETS: Record<string, string> = {
+  none: '',
+  chibi: 'chibi style, cute face',
+  hoodie: 'cat hoodie, cozy palette',
+  retro_hero: 'retro hero portrait, bold outline',
+};
+
+const AVATAR_QUALITY_PRESETS: Record<
+  AvatarQualityPreset,
+  { steps: number; guidance: number; variation: number; palette: number }
+> = {
+  fast: { steps: 16, guidance: 6.5, variation: 0.2, palette: 96 },
+  balanced: { steps: 24, guidance: 7.0, variation: 0.22, palette: 128 },
+  high: { steps: 36, guidance: 7.5, variation: 0.24, palette: 160 },
+};
 
 const AVATAR_STATE_DEFS: Array<{
   key: AvatarStateKey;
@@ -176,8 +200,28 @@ export function ProfileForm() {
     idle_blink: null,
     talk_blink: null,
   });
+  const [generatedStatePreviews, setGeneratedStatePreviews] = useState<AvatarStatePreviews>({
+    idle: null,
+    talk: null,
+    idle_blink: null,
+    talk_blink: null,
+  });
   const [hasSavedVibeTubePack, setHasSavedVibeTubePack] = useState(false);
   const [isPackLoading, setIsPackLoading] = useState(false);
+  const [avatarGeneratePrompt, setAvatarGeneratePrompt] = useState('');
+  const [avatarGenerateSeed, setAvatarGenerateSeed] = useState<string>('');
+  const [avatarModelId, setAvatarModelId] = useState<string>(AVATAR_TEST_MODEL_ID);
+  const [avatarStylePreset, setAvatarStylePreset] = useState<string>('none');
+  const [avatarQualityPreset, setAvatarQualityPreset] = useState<AvatarQualityPreset>('balanced');
+  const [isGeneratingAvatarPack, setIsGeneratingAvatarPack] = useState(false);
+  const [avatarGenerationStage, setAvatarGenerationStage] = useState<'idle' | 'rest' | null>(null);
+  const [isApplyingGeneratedAvatarPack, setIsApplyingGeneratedAvatarPack] = useState(false);
+  const [hasPendingGeneratedPreview, setHasPendingGeneratedPreview] = useState(false);
+  const [isIdlePreviewReady, setIsIdlePreviewReady] = useState(false);
+  const [isAvatarGenPanelOpen, setIsAvatarGenPanelOpen] = useState(false);
+  const [imageModelStatus, setImageModelStatus] = useState<ImageModelStatusResponse | null>(null);
+  const [isImageModelStatusLoading, setIsImageModelStatusLoading] = useState(false);
+  const [isImageModelDownloadStarting, setIsImageModelDownloadStarting] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { isPlaying, playPause, cleanup: cleanupAudio } = useAudioPlayer();
   const isCreating = !editingProfileId;
@@ -197,6 +241,11 @@ export function ProfileForm() {
 
   const selectedFile = form.watch('sampleFile');
   const selectedAvatarFile = form.watch('avatarFile');
+  const parsedAvatarSeed = avatarGenerateSeed.trim() ? Number(avatarGenerateSeed) : undefined;
+  const hasAnyGeneratedPreview = Object.values(generatedStatePreviews).some(Boolean);
+  const isImageModelReady = Boolean(imageModelStatus?.downloaded);
+  const isImageModelDownloading =
+    Boolean(imageModelStatus?.downloading) || isImageModelDownloadStarting;
 
   // Validate audio duration when file is selected
   useEffect(() => {
@@ -399,12 +448,27 @@ export function ProfileForm() {
       setSampleMode('record');
       setRecordGainDb(0);
       setAvatarPreview(null);
+      setAvatarGeneratePrompt('');
+      setAvatarGenerateSeed('');
+      setAvatarModelId(AVATAR_TEST_MODEL_ID);
+      setAvatarStylePreset('none');
+      setAvatarQualityPreset('balanced');
+      setHasPendingGeneratedPreview(false);
+      setIsIdlePreviewReady(false);
+      setGeneratedStatePreviews({
+        idle: null,
+        talk: null,
+        idle_blink: null,
+        talk_blink: null,
+      });
     }
   }, [editingProfile, profileFormDraft, open, form]);
 
   useEffect(() => {
     if (!open || !editingProfileId) {
       setHasSavedVibeTubePack(false);
+      setHasPendingGeneratedPreview(false);
+      setIsIdlePreviewReady(false);
       if (!open) {
         setAvatarStateFiles({
           idle: null,
@@ -413,6 +477,12 @@ export function ProfileForm() {
           talk_blink: null,
         });
         setAvatarStatePreviews({
+          idle: null,
+          talk: null,
+          idle_blink: null,
+          talk_blink: null,
+        });
+        setGeneratedStatePreviews({
           idle: null,
           talk: null,
           idle_blink: null,
@@ -456,6 +526,27 @@ export function ProfileForm() {
                 ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk_blink')}?t=${t}`
                 : null,
         }));
+        return apiClient.getVibeTubeAvatarPreview(editingProfileId).catch(() => null);
+      })
+      .then((preview) => {
+        if (cancelled || !preview) return;
+        const t = Date.now();
+        setGeneratedStatePreviews({
+          idle: preview.idle_url
+            ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(editingProfileId, 'idle')}?t=${t}`
+            : null,
+          talk: preview.talk_url
+            ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(editingProfileId, 'talk')}?t=${t}`
+            : null,
+          idle_blink: preview.idle_blink_url
+            ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(editingProfileId, 'idle_blink')}?t=${t}`
+            : null,
+          talk_blink: preview.talk_blink_url
+            ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(editingProfileId, 'talk_blink')}?t=${t}`
+            : null,
+        });
+        setIsIdlePreviewReady(Boolean(preview.idle_url) && Boolean(preview.idle_ready));
+        setHasPendingGeneratedPreview(preview.complete);
       })
       .catch(() => {
         if (!cancelled) {
@@ -472,6 +563,47 @@ export function ProfileForm() {
       cancelled = true;
     };
   }, [open, editingProfileId]);
+
+  useEffect(() => {
+    if (!open || !isAvatarGenPanelOpen) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchImageModelStatus = async (showLoading = false) => {
+      if (showLoading) {
+        setIsImageModelStatusLoading(true);
+      }
+      try {
+        const status = await apiClient.getStylizedPixelImageModelStatus();
+        if (!cancelled) {
+          setImageModelStatus(status);
+          if (!status.downloading) {
+            setIsImageModelDownloadStarting(false);
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setImageModelStatus(null);
+        }
+      } finally {
+        if (!cancelled && showLoading) {
+          setIsImageModelStatusLoading(false);
+        }
+      }
+    };
+
+    fetchImageModelStatus(true);
+    const interval = window.setInterval(() => {
+      void fetchImageModelStatus(false);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [open, isAvatarGenPanelOpen]);
 
   async function handleTranscribe() {
     const file = form.getValues('sampleFile');
@@ -559,6 +691,257 @@ export function ProfileForm() {
     }
   }
 
+  async function refreshAvatarPackPreviews(profileId: string) {
+    const pack = await apiClient.getVibeTubeAvatarPack(profileId);
+    setHasSavedVibeTubePack(pack.complete);
+    const t = Date.now();
+    setAvatarStatePreviews((prev) => ({
+      idle:
+        prev.idle?.startsWith('blob:')
+          ? prev.idle
+          : pack.idle_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(profileId, 'idle')}?t=${t}`
+            : null,
+      talk:
+        prev.talk?.startsWith('blob:')
+          ? prev.talk
+          : pack.talk_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(profileId, 'talk')}?t=${t}`
+            : null,
+      idle_blink:
+        prev.idle_blink?.startsWith('blob:')
+          ? prev.idle_blink
+          : pack.idle_blink_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(profileId, 'idle_blink')}?t=${t}`
+            : null,
+      talk_blink:
+        prev.talk_blink?.startsWith('blob:')
+          ? prev.talk_blink
+          : pack.talk_blink_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(profileId, 'talk_blink')}?t=${t}`
+            : null,
+    }));
+  }
+
+  function buildAvatarGenerateRequest() {
+    const resolvedModelId = avatarModelId.trim();
+    if (!resolvedModelId) {
+      throw new Error('Select a model or enter a custom model ID.');
+    }
+    const styleSuffix = AVATAR_STYLE_PRESETS[avatarStylePreset] || '';
+    const finalPrompt = styleSuffix
+      ? `${avatarGeneratePrompt.trim()}, ${styleSuffix}`
+      : avatarGeneratePrompt.trim();
+    const quality = AVATAR_QUALITY_PRESETS[avatarQualityPreset];
+    return {
+      prompt: finalPrompt,
+      model_id: resolvedModelId,
+      seed: parsedAvatarSeed,
+      size: 512,
+      output_size: 512,
+      palette_colors: quality.palette,
+      num_inference_steps: quality.steps,
+      guidance_scale: quality.guidance,
+      variation_strength: quality.variation,
+      match_existing_style: false,
+      reference_strength: 0.18,
+    };
+  }
+
+  function applyGeneratedPreviewUrls(profileId: string, preview: { idle_url?: string; idle_ready?: boolean; talk_url?: string; idle_blink_url?: string; talk_blink_url?: string; complete: boolean; }) {
+    const t = Date.now();
+    setGeneratedStatePreviews({
+      idle: preview.idle_url
+        ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(profileId, 'idle')}?t=${t}`
+        : null,
+      talk: preview.talk_url
+        ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(profileId, 'talk')}?t=${t}`
+        : null,
+      idle_blink: preview.idle_blink_url
+        ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(profileId, 'idle_blink')}?t=${t}`
+        : null,
+      talk_blink: preview.talk_blink_url
+        ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(profileId, 'talk_blink')}?t=${t}`
+        : null,
+    });
+    setIsIdlePreviewReady(Boolean(preview.idle_url) && Boolean(preview.idle_ready));
+    setHasPendingGeneratedPreview(preview.complete);
+  }
+
+  async function generateIdlePreviewForProfile(profileId: string) {
+    if (!isImageModelReady) {
+      toast({
+        title: 'Model required',
+        description: 'Download StylizedPixel M80 before using this test feature.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!avatarGeneratePrompt.trim()) {
+      toast({
+        title: 'Prompt required',
+        description: 'Add a character prompt before generating avatar states.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (avatarGenerateSeed.trim() && Number.isNaN(parsedAvatarSeed)) {
+      toast({
+        title: 'Invalid seed',
+        description: 'Seed must be a valid integer.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setHasPendingGeneratedPreview(false);
+    setIsIdlePreviewReady(false);
+    setGeneratedStatePreviews({
+      idle: null,
+      talk: null,
+      idle_blink: null,
+      talk_blink: null,
+    });
+    setIsGeneratingAvatarPack(true);
+    setAvatarGenerationStage('idle');
+    try {
+      const preview = await apiClient.generateVibeTubeAvatarIdlePreview(
+        profileId,
+        buildAvatarGenerateRequest(),
+      );
+      applyGeneratedPreviewUrls(profileId, preview);
+      toast({
+        title: 'Idle preview generated',
+        description: 'Idle is ready. Review it, then click Generate Rest 3.',
+      });
+    } catch (error) {
+      setHasPendingGeneratedPreview(false);
+      setIsIdlePreviewReady(false);
+      toast({
+        title: 'Idle generation failed',
+        description: error instanceof Error ? error.message : 'Failed to generate idle preview.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingAvatarPack(false);
+      setAvatarGenerationStage(null);
+    }
+  }
+
+  async function generateRestPreviewForProfile(profileId: string) {
+    if (!isImageModelReady) {
+      toast({
+        title: 'Model required',
+        description: 'Download StylizedPixel M80 before using this test feature.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!avatarGeneratePrompt.trim()) {
+      toast({
+        title: 'Prompt required',
+        description: 'Add a character prompt before generating avatar states.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (avatarGenerateSeed.trim() && Number.isNaN(parsedAvatarSeed)) {
+      toast({
+        title: 'Invalid seed',
+        description: 'Seed must be a valid integer.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!generatedStatePreviews.idle) {
+      toast({
+        title: 'Idle required',
+        description: 'Generate idle first, then generate the remaining 3 states.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsGeneratingAvatarPack(true);
+    setAvatarGenerationStage('rest');
+    try {
+      const preview = await apiClient.generateVibeTubeAvatarRestPreview(
+        profileId,
+        buildAvatarGenerateRequest(),
+      );
+      applyGeneratedPreviewUrls(profileId, preview);
+      toast({
+        title: 'Remaining states generated',
+        description: 'talk, idle_blink, and talk_blink have been generated from idle.',
+      });
+    } catch (error) {
+      toast({
+        title: 'State generation failed',
+        description: error instanceof Error ? error.message : 'Failed to generate remaining states.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingAvatarPack(false);
+      setAvatarGenerationStage(null);
+    }
+  }
+
+  async function applyGeneratedAvatarPack(profileId: string) {
+    setIsApplyingGeneratedAvatarPack(true);
+    try {
+      await apiClient.applyVibeTubeAvatarPreview(profileId);
+      await refreshAvatarPackPreviews(profileId);
+      setHasPendingGeneratedPreview(false);
+      setIsIdlePreviewReady(false);
+      setGeneratedStatePreviews({
+        idle: null,
+        talk: null,
+        idle_blink: null,
+        talk_blink: null,
+      });
+      toast({
+        title: 'Avatar preview applied',
+        description: 'Generated preview states are now saved as the active avatar pack.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Apply failed',
+        description:
+          error instanceof Error ? error.message : 'Failed to apply generated preview states.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsApplyingGeneratedAvatarPack(false);
+    }
+  }
+
+  async function downloadImageTestModel() {
+    setIsImageModelDownloadStarting(true);
+    try {
+      const response = await apiClient.downloadStylizedPixelImageModel();
+      toast({
+        title: 'Model download started',
+        description: response.message,
+      });
+      const status = await apiClient.getStylizedPixelImageModelStatus();
+      setImageModelStatus(status);
+      if (!status.downloading) {
+        setIsImageModelDownloadStarting(false);
+      }
+    } catch (error) {
+      setIsImageModelDownloadStarting(false);
+      toast({
+        title: 'Model download failed',
+        description: error instanceof Error ? error.message : 'Failed to start model download.',
+        variant: 'destructive',
+      });
+    }
+  }
+
   async function onSubmit(data: ProfileFormValues) {
     const selectedAvatarStateEntries = Object.entries(avatarStateFiles).filter(
       ([, file]) => file instanceof File,
@@ -577,7 +960,6 @@ export function ProfileForm() {
 
     try {
       if (editingProfileId) {
-        // Editing: just update profile
         await updateProfile.mutateAsync({
           profileId: editingProfileId,
           data: {
@@ -587,7 +969,6 @@ export function ProfileForm() {
           },
         });
 
-        // Handle avatar upload/update if file changed
         if (data.avatarFile) {
           try {
             await uploadAvatar.mutateAsync({
@@ -604,12 +985,31 @@ export function ProfileForm() {
           }
         }
 
+        if (hasAllAvatarStateFiles) {
+          try {
+            await apiClient.saveVibeTubeAvatarPack({
+              profileId: editingProfileId,
+              idle: avatarStateFiles.idle as File,
+              talk: avatarStateFiles.talk as File,
+              idleBlink: avatarStateFiles.idle_blink as File,
+              talkBlink: avatarStateFiles.talk_blink as File,
+            });
+            await refreshAvatarPackPreviews(editingProfileId);
+          } catch (packError) {
+            toast({
+              title: 'VibeTube avatar states upload failed',
+              description:
+                packError instanceof Error ? packError.message : 'Failed to save 4-state avatar pack.',
+              variant: 'destructive',
+            });
+          }
+        }
+
         toast({
           title: 'Voice updated',
           description: `"${data.name}" has been updated successfully.`,
         });
       } else {
-        // Creating: require sample file and reference text
         const sampleFile = form.getValues('sampleFile');
         const referenceText = form.getValues('referenceText');
 
@@ -639,7 +1039,6 @@ export function ProfileForm() {
           return;
         }
 
-        // Validate audio duration before creating profile
         try {
           const duration = await getAudioDuration(sampleFile);
           if (duration > MAX_AUDIO_DURATION_SECONDS) {
@@ -652,7 +1051,7 @@ export function ProfileForm() {
               description: `Audio duration is ${formatAudioDuration(duration)}, but maximum is ${formatAudioDuration(MAX_AUDIO_DURATION_SECONDS)}.`,
               variant: 'destructive',
             });
-            return; // Prevent form submission
+            return;
           }
         } catch (error) {
           form.setError('sampleFile', {
@@ -664,43 +1063,21 @@ export function ProfileForm() {
             description: error instanceof Error ? error.message : 'Failed to validate audio file',
             variant: 'destructive',
           });
-          return; // Prevent form submission
+          return;
         }
 
-        // Creating: create profile, then add sample
         const profile = await createProfile.mutateAsync({
           name: data.name,
           description: data.description,
           language: data.language,
         });
 
-        // Convert non-WAV uploads to WAV so the backend can always use soundfile.
-        // Recorded audio is already WAV (from useAudioRecording's convertToWav call).
         let fileToUpload: File = sampleFile;
         if (sampleMode === 'record' && Math.abs(recordGainDb) > 0.001) {
           try {
             fileToUpload = await applyGainToAudioFile(fileToUpload, recordGainDb);
           } catch {
             // Keep original if gain processing fails.
-          }
-        }
-
-        if (hasAllAvatarStateFiles) {
-          try {
-            await apiClient.saveVibeTubeAvatarPack({
-              profileId: editingProfileId,
-              idle: avatarStateFiles.idle as File,
-              talk: avatarStateFiles.talk as File,
-              idleBlink: avatarStateFiles.idle_blink as File,
-              talkBlink: avatarStateFiles.talk_blink as File,
-            });
-            setHasSavedVibeTubePack(true);
-          } catch (packError) {
-            toast({
-              title: 'VibeTube avatar states upload failed',
-              description: packError instanceof Error ? packError.message : 'Failed to save 4-state avatar pack.',
-              variant: 'destructive',
-            });
           }
         }
         if (
@@ -723,7 +1100,6 @@ export function ProfileForm() {
             referenceText: referenceText,
           });
 
-          // Handle avatar upload if provided
           if (data.avatarFile) {
             try {
               await uploadAvatar.mutateAsync({
@@ -749,10 +1125,12 @@ export function ProfileForm() {
                 idleBlink: avatarStateFiles.idle_blink as File,
                 talkBlink: avatarStateFiles.talk_blink as File,
               });
+              await refreshAvatarPackPreviews(profile.id);
             } catch (packError) {
               toast({
                 title: 'VibeTube avatar states upload failed',
-                description: packError instanceof Error ? packError.message : 'Failed to save 4-state avatar pack.',
+                description:
+                  packError instanceof Error ? packError.message : 'Failed to save 4-state avatar pack.',
                 variant: 'destructive',
               });
             }
@@ -763,7 +1141,6 @@ export function ProfileForm() {
             description: `"${data.name}" has been created with a sample.`,
           });
         } catch (sampleError) {
-          // Profile was created but sample failed - still show error
           toast({
             title: 'Failed to add sample',
             description: `Profile "${data.name}" was created, but failed to add sample: ${sampleError instanceof Error ? sampleError.message : 'Unknown error'}`,
@@ -772,7 +1149,6 @@ export function ProfileForm() {
         }
       }
 
-      // Clear draft and reset form on success
       setProfileFormDraft(null);
       form.reset();
       setEditingProfileId(null);
@@ -1088,14 +1464,239 @@ export function ProfileForm() {
                     )}
                   />
 
-                  <div className="rounded-lg border bg-card/40 p-3 space-y-3">
+                  <div className="rounded-lg border bg-card/40 p-3 flex flex-col gap-3">
                     <div>
                       <p className="text-sm font-medium">VibeTube Avatar State Images</p>
                       <p className="text-xs text-muted-foreground">
-                        Upload 4 PNG images so this voice can render instantly from Generate.
+                        Upload 4 PNGs, or auto-generate states from a character prompt.
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="order-3 rounded-md border bg-background/60 p-3 space-y-2">
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between text-xs font-medium"
+                        onClick={() => setIsAvatarGenPanelOpen((v) => !v)}
+                      >
+                        <span>Test Feature: Generate From Prompt (Local Model)</span>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${isAvatarGenPanelOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                      {!isAvatarGenPanelOpen && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Collapsed by default. Click to expand this experimental generator.
+                        </p>
+                      )}
+                      {isAvatarGenPanelOpen && (
+                        <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <p className="text-[11px] text-muted-foreground">Model</p>
+                          <div className="rounded-md border bg-background/70 px-3 py-2 text-sm">
+                            {AVATAR_TEST_MODEL_LABEL}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[11px] text-muted-foreground">Quality</p>
+                          <Select
+                            value={avatarQualityPreset}
+                            onValueChange={(v) => setAvatarQualityPreset(v as AvatarQualityPreset)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fast">Fast</SelectItem>
+                              <SelectItem value="balanced">Balanced</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {AVATAR_TEST_MODEL_NOTE} This model is not bundled with the app.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isImageModelReady || isImageModelDownloading || isImageModelStatusLoading}
+                          onClick={downloadImageTestModel}
+                        >
+                          {isImageModelDownloading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Downloading...
+                            </>
+                          ) : isImageModelReady ? (
+                            'Model Ready'
+                          ) : (
+                            'Download Model'
+                          )}
+                        </Button>
+                        <a
+                          href={AVATAR_TEST_MODEL_DOWNLOAD_URL}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex text-[11px] text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
+                        >
+                          Direct download link
+                        </a>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {isImageModelStatusLoading
+                          ? 'Checking local model status...'
+                          : isImageModelReady
+                            ? `Model downloaded to ${imageModelStatus?.file_path ?? AVATAR_TEST_MODEL_ID}`
+                            : isImageModelDownloading
+                              ? `Downloading to ${AVATAR_TEST_MODEL_ID}...`
+                              : `If you test this feature, the app downloads the model to ${AVATAR_TEST_MODEL_ID}.`}
+                      </p>
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-muted-foreground">Style Preset</p>
+                        <Select value={avatarStylePreset} onValueChange={setAvatarStylePreset}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="chibi">Chibi Portrait</SelectItem>
+                            <SelectItem value="hoodie">Cozy Hoodie</SelectItem>
+                            <SelectItem value="retro_hero">Retro Hero</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Textarea
+                        value={avatarGeneratePrompt}
+                        onChange={(e) => setAvatarGeneratePrompt(e.target.value)}
+                        placeholder="Describe how the character should look (added to the system style prompt)."
+                        className="min-h-[84px]"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Keep prompt short (about 5-20 words) for SD1.x models to avoid CLIP truncation.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={avatarGenerateSeed}
+                          onChange={(e) => setAvatarGenerateSeed(e.target.value)}
+                          placeholder="Seed (optional)"
+                          inputMode="numeric"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={
+                            !editingProfileId ||
+                            !isImageModelReady ||
+                            isGeneratingAvatarPack ||
+                            isApplyingGeneratedAvatarPack
+                          }
+                          onClick={() => editingProfileId && generateIdlePreviewForProfile(editingProfileId)}
+                        >
+                          {isGeneratingAvatarPack && avatarGenerationStage === 'idle' ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-2" />
+                          )}
+                          {isGeneratingAvatarPack && avatarGenerationStage === 'idle'
+                            ? 'Generating Idle...'
+                            : 'Generate Idle'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={
+                            !editingProfileId ||
+                            !isImageModelReady ||
+                            !isIdlePreviewReady ||
+                            isGeneratingAvatarPack ||
+                            isApplyingGeneratedAvatarPack
+                          }
+                          onClick={() => editingProfileId && generateRestPreviewForProfile(editingProfileId)}
+                        >
+                          {isGeneratingAvatarPack && avatarGenerationStage === 'rest' ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Generating Rest 3...
+                            </>
+                          ) : (
+                            'Generate Rest 3'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="default"
+                          disabled={
+                            !editingProfileId ||
+                            !hasPendingGeneratedPreview ||
+                            isGeneratingAvatarPack ||
+                            isApplyingGeneratedAvatarPack
+                          }
+                          onClick={() => editingProfileId && applyGeneratedAvatarPack(editingProfileId)}
+                        >
+                          {isApplyingGeneratedAvatarPack ? 'Applying...' : 'Apply'}
+                        </Button>
+                      </div>
+                      {isGeneratingAvatarPack && (
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {avatarGenerationStage === 'idle'
+                            ? 'Generating idle preview...'
+                            : 'Generating talk/blink states from idle...'}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        Generates at native 512x512 for higher quality and more reliable expression edits.
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Step 1: Generate Idle. Step 2: Generate Rest 3 from idle. Step 3: Apply.
+                      </p>
+                      {!editingProfileId && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Save the profile first to use one-click generation.
+                        </p>
+                      )}
+                      {hasAnyGeneratedPreview && (
+                        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-2">
+                          <p className="text-xs font-medium">
+                            Generated Preview {!hasPendingGeneratedPreview ? '(Idle Only / In Progress)' : '(Not Applied Yet)'}
+                          </p>
+                          <div className="grid grid-cols-4 gap-2">
+                            {AVATAR_STATE_DEFS.map((def) => (
+                              <div key={`preview-${def.key}`} className="text-center space-y-1">
+                                <div
+                                  className="h-16 w-16 mx-auto rounded border overflow-hidden"
+                                  style={{
+                                    backgroundImage:
+                                      'linear-gradient(45deg, #1a1a1a 25%, transparent 25%), linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a1a1a 75%), linear-gradient(-45deg, transparent 75%, #1a1a1a 75%)',
+                                    backgroundSize: '10px 10px',
+                                    backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px',
+                                    backgroundColor: '#111',
+                                  }}
+                                >
+                                  {generatedStatePreviews[def.key] ? (
+                                    <img
+                                      src={generatedStatePreviews[def.key] ?? undefined}
+                                      alt={`${def.label} preview`}
+                                      className="h-full w-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-[9px] text-muted-foreground">
+                                      No preview
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">{def.key}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                        </>
+                      )}
+                    </div>
+                    <div className="order-1 grid grid-cols-1 md:grid-cols-2 gap-3">
                       {AVATAR_STATE_DEFS.map((def) => (
                         <div key={def.key} className="rounded-md border bg-background/60 p-2 space-y-2">
                           <div className="text-xs">
@@ -1146,7 +1747,7 @@ export function ProfileForm() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="order-2 text-xs text-muted-foreground">
                       {isPackLoading
                         ? 'Checking saved VibeTube pack...'
                         : hasSavedVibeTubePack
@@ -1217,10 +1818,18 @@ export function ProfileForm() {
                 <Button
                   type="submit"
                   disabled={
-                    createProfile.isPending || updateProfile.isPending || addSample.isPending
+                    createProfile.isPending ||
+                    updateProfile.isPending ||
+                    addSample.isPending ||
+                    isGeneratingAvatarPack ||
+                    isApplyingGeneratedAvatarPack
                   }
                 >
-                  {createProfile.isPending || updateProfile.isPending || addSample.isPending
+                  {createProfile.isPending ||
+                  updateProfile.isPending ||
+                  addSample.isPending ||
+                  isGeneratingAvatarPack ||
+                  isApplyingGeneratedAvatarPack
                     ? 'Saving...'
                     : editingProfileId
                       ? 'Save Changes'

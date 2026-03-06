@@ -7,3 +7,5 @@ soundfile
 librosa
 python-multipart
 huggingface_hub
+diffusers
+safetensors

@@ -110,6 +110,16 @@ export interface ModelDownloadRequest {
   model_name: string;
 }
 
+export interface ImageModelStatusResponse {
+  model_name: string;
+  display_name: string;
+  downloaded: boolean;
+  downloading: boolean;
+  download_url: string;
+  file_path?: string;
+  size_bytes?: number;
+}
+
 export interface ActiveDownloadTask {
   model_name: string;
   status: string;
@@ -266,6 +276,34 @@ export interface VibeTubeAvatarPackResponse {
   idle_blink_url?: string;
   talk_blink_url?: string;
   complete: boolean;
+}
+
+export interface VibeTubeAvatarPreviewResponse {
+  profile_id: string;
+  idle_url?: string;
+  idle_ready?: boolean;
+  talk_url?: string;
+  idle_blink_url?: string;
+  talk_blink_url?: string;
+  complete: boolean;
+}
+
+export interface VibeTubeAvatarGenerateRequest {
+  prompt: string;
+  seed?: number;
+  size?: number;
+  output_size?: number;
+  palette_colors?: number;
+  seed_step?: number;
+  model_id?: string;
+  lora_id?: string;
+  lora_scale?: number;
+  negative_prompt?: string;
+  num_inference_steps?: number;
+  guidance_scale?: number;
+  variation_strength?: number;
+  match_existing_style?: boolean;
+  reference_strength?: number;
 }
 
 export interface VibeTubeRenderResponse {

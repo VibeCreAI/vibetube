@@ -8,6 +8,7 @@ import type {
   HistoryListResponse,
   HistoryQuery,
   HistoryResponse,
+  ImageModelStatusResponse,
   ModelDownloadRequest,
   ModelStatusListResponse,
   ProfileSampleResponse,
@@ -23,7 +24,9 @@ import type {
   StoryResponse,
   StoryVibeTubeRenderRequest,
   TranscriptionResponse,
+  VibeTubeAvatarGenerateRequest,
   VibeTubeAvatarPackResponse,
+  VibeTubeAvatarPreviewResponse,
   VibeTubeJobResponse,
   VibeTubeRenderRequest,
   VibeTubeRenderResponse,
@@ -359,6 +362,16 @@ class ApiClient {
     });
   }
 
+  async getStylizedPixelImageModelStatus(): Promise<ImageModelStatusResponse> {
+    return this.request<ImageModelStatusResponse>('/image-models/stylizedpixel/status');
+  }
+
+  async downloadStylizedPixelImageModel(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/image-models/stylizedpixel/download', {
+      method: 'POST',
+    });
+  }
+
   // Task Management
   async getActiveTasks(): Promise<ActiveTasksResponse> {
     return this.request<ActiveTasksResponse>('/tasks/active');
@@ -682,6 +695,65 @@ class ApiClient {
       throw new Error(error.detail || `HTTP error! status: ${response.status}`);
     }
     return response.json();
+  }
+
+  async generateVibeTubeAvatarPreview(
+    profileId: string,
+    data: VibeTubeAvatarGenerateRequest,
+  ): Promise<VibeTubeAvatarPreviewResponse> {
+    return this.request<VibeTubeAvatarPreviewResponse>(
+      `/profiles/${profileId}/vibetube-avatar-pack/generate-preview`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
+  async generateVibeTubeAvatarIdlePreview(
+    profileId: string,
+    data: VibeTubeAvatarGenerateRequest,
+  ): Promise<VibeTubeAvatarPreviewResponse> {
+    return this.request<VibeTubeAvatarPreviewResponse>(
+      `/profiles/${profileId}/vibetube-avatar-pack/generate-idle-preview`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
+  async generateVibeTubeAvatarRestPreview(
+    profileId: string,
+    data: VibeTubeAvatarGenerateRequest,
+  ): Promise<VibeTubeAvatarPreviewResponse> {
+    return this.request<VibeTubeAvatarPreviewResponse>(
+      `/profiles/${profileId}/vibetube-avatar-pack/generate-rest-preview`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
+  async getVibeTubeAvatarPreview(profileId: string): Promise<VibeTubeAvatarPreviewResponse> {
+    return this.request<VibeTubeAvatarPreviewResponse>(
+      `/profiles/${profileId}/vibetube-avatar-preview`,
+    );
+  }
+
+  async applyVibeTubeAvatarPreview(profileId: string): Promise<VibeTubeAvatarPackResponse> {
+    return this.request<VibeTubeAvatarPackResponse>(
+      `/profiles/${profileId}/vibetube-avatar-pack/apply-preview`,
+      { method: 'POST' },
+    );
+  }
+
+  getVibeTubeAvatarPreviewStateUrl(
+    profileId: string,
+    state: 'idle' | 'talk' | 'idle_blink' | 'talk_blink',
+  ): string {
+    return `${this.getBaseUrl()}/profiles/${profileId}/vibetube-avatar-preview/${state}`;
   }
 
   getVibeTubeAvatarStateUrl(

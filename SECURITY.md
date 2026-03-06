@@ -1,92 +1,74 @@
-﻿# Security Policy
+# Security Policy
 
 ## Supported Versions
 
-We release patches for security vulnerabilities. Which versions are eligible for receiving such patches depends on the CVSS v3.0 Rating:
+Security fixes are applied to the current maintained release line.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| Version | Supported |
+| --- | --- |
+| `0.1.x` | Yes |
+| `< 0.1` | No |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please report it responsibly:
+Please report vulnerabilities privately.
 
-1. **Do not** open a public GitHub issue
-2. Email security details to: [security@VibeTube.sh](mailto:security@VibeTube.sh)
-3. Include:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
+Do not:
 
-We will:
-- Acknowledge receipt within 48 hours
-- Provide a timeline for addressing the issue
-- Keep you informed of progress
-- Credit you in the security advisory (if desired)
+- open a public GitHub issue
+- post exploit details in discussions, PRs, or comments
 
-## Security Best Practices
+Preferred reporting path:
 
-### For Users
+1. Use GitHub's private vulnerability reporting flow for this repository if it is enabled.
+2. If that is not available, contact the maintainers privately through GitHub.
 
-- **Keep VibeTube updated** - Updates include security patches
-- **Verify downloads** - Only download from official releases
-- **Local processing** - Voice data stays on your machine
-- **Network security** - Use HTTPS when connecting to remote servers
+Include:
 
-### For Developers
+- a clear description of the issue
+- affected area or file paths
+- reproduction steps
+- impact
+- suggested mitigation if you have one
 
-- **Dependencies** - Keep all dependencies up to date
-- **Code review** - All PRs require review before merging
-- **Secrets** - Never commit API keys or signing keys
-- **Signing** - All releases are cryptographically signed
+## What to Expect
 
-## Known Security Considerations
+- We will review the report and validate the issue.
+- We may ask follow-up questions or request a proof of concept.
+- We will coordinate disclosure timing when a report is valid.
 
-### Local Processing
+Response times depend on severity and maintainer availability. No fixed SLA is guaranteed.
 
-VibeTube processes all audio locally by default. Your voice data never leaves your machine unless you explicitly enable remote server mode.
+## Security Considerations
 
-### Remote Server Mode
+### Local-first runtime
 
-When connecting to a remote server:
-- Ensure the server is on a trusted network
-- Use HTTPS for remote connections
-- Verify server identity before connecting
+VibeTube is designed to run locally by default. Audio, model files, and generated assets can remain on the local machine unless you intentionally connect to an external server or move files elsewhere.
 
-### Auto-Updates
+### Remote or external server connections
 
-- Updates are cryptographically signed
-- Signature verification happens before installation
-- Only HTTPS endpoints are allowed
+If you point the app at a non-local backend:
 
-### Python Server
+- treat that server as trusted infrastructure
+- use network protections appropriate for the environment
+- avoid exposing development servers directly to the public internet without hardening
 
-The embedded Python server:
-- Runs locally by default (localhost only)
-- Can be configured for remote access
-- Uses standard FastAPI security practices
+### Development server defaults
 
-## Disclosure Timeline
+Typical development setup binds the backend to `127.0.0.1:17493`. If you change that to a broader host such as `0.0.0.0`, you are responsible for the resulting network exposure.
 
-- **Day 0**: Vulnerability reported
-- **Day 1-2**: Initial assessment and acknowledgment
-- **Day 3-7**: Investigation and fix development
-- **Day 8-14**: Testing and release preparation
-- **Day 15+**: Public disclosure (if applicable)
+### Model and dependency supply chain
 
-Timeline may vary based on severity and complexity.
+The project depends on third-party Python and JavaScript packages, model downloads, and build tooling. Keep dependencies current and review source changes carefully when updating them.
 
 ## Security Updates
 
-Security updates will be:
-- Released as patch versions (e.g., 0.1.1)
-- Documented in CHANGELOG.md
-- Announced via GitHub releases
-- Automatically delivered via auto-updater
+Security-related fixes may be reflected in:
 
----
+- patch releases
+- GitHub release notes
+- repository documentation such as [CHANGELOG.md](CHANGELOG.md)
 
-Thank you for helping keep VibeTube secure! ðŸ”’
+## Disclosure
+
+Please allow maintainers reasonable time to investigate and fix a reported issue before public disclosure.

@@ -42,6 +42,7 @@ data/projects/*
 data/voicebox.db
 data/vibetube.db
 data/vibetube/
+data/models/checkpoints/
 data/tmp_transparent_*.png
 !data/.gitkeep
 

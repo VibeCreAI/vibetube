@@ -26,6 +26,8 @@ import shutil
 import json
 import base64
 import re
+import random
+import urllib.request
 from urllib.parse import quote
 from PIL import Image, ExifTags
 
@@ -57,6 +59,7 @@ from .database import (
 from .utils.progress import get_progress_manager
 from .utils.tasks import get_task_manager
 from .utils.cache import clear_voice_prompt_cache
+from .utils import avatar_local
 from .platform_detect import get_backend_type
 
 app = FastAPI(
@@ -78,10 +81,88 @@ app.add_middleware(
 )
 
 _VIBETUBE_AVATAR_STATES = {"idle", "talk", "idle_blink", "talk_blink"}
+_DEFAULT_AVATAR_MODEL_ID = os.environ.get(
+    "VIBETUBE_AVATAR_MODEL_ID",
+    "runwayml/stable-diffusion-v1-5",
+)
+_DEFAULT_AVATAR_LORA_ID = os.environ.get("VIBETUBE_AVATAR_LORA_ID") or None
+_STYLIZED_PIXEL_MODEL_NAME = "stylizedpixel-m80"
+_STYLIZED_PIXEL_DISPLAY_NAME = "StylizedPixel M80"
+_STYLIZED_PIXEL_DOWNLOAD_URL = (
+    "https://civitai.com/api/download/models/153325"
+    "?type=Model&format=SafeTensor&size=full&fp=fp16"
+)
 
 
 def _vibetube_avatar_pack_dir(profile_id: str) -> Path:
     return config.get_profiles_dir() / profile_id / "vibetube_avatar"
+
+
+def _vibetube_avatar_preview_dir(profile_id: str) -> Path:
+    return config.get_profiles_dir() / profile_id / "vibetube_avatar_preview"
+
+
+def _avatar_style_refs_dir() -> Path:
+    return config.get_data_dir() / "avatar_style_refs"
+
+
+def _bundled_avatar_style_refs_dir() -> Path:
+    return Path(__file__).resolve().parent / "assets" / "avatar_style_refs"
+
+
+def _stylized_pixel_model_path() -> Path:
+    checkpoints_dir = config.get_models_dir() / "checkpoints"
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+    return checkpoints_dir / "stylizedpixel_m80.safetensors"
+
+
+def _list_avatar_style_references() -> list[Path]:
+    refs: list[Path] = []
+    for refs_dir in (_bundled_avatar_style_refs_dir(), _avatar_style_refs_dir()):
+        if not refs_dir.exists():
+            continue
+        refs.extend(
+            sorted(
+                [
+                    p
+                    for p in refs_dir.iterdir()
+                    if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+                ]
+            )
+        )
+    return refs
+
+
+def _build_image_model_status() -> models.ImageModelStatusResponse:
+    model_path = _stylized_pixel_model_path()
+    task_manager = get_task_manager()
+    downloaded = model_path.exists() and model_path.is_file()
+    return models.ImageModelStatusResponse(
+        model_name=_STYLIZED_PIXEL_MODEL_NAME,
+        display_name=_STYLIZED_PIXEL_DISPLAY_NAME,
+        downloaded=downloaded,
+        downloading=task_manager.is_download_active(_STYLIZED_PIXEL_MODEL_NAME),
+        download_url=_STYLIZED_PIXEL_DOWNLOAD_URL,
+        file_path=str(model_path) if downloaded else None,
+        size_bytes=model_path.stat().st_size if downloaded else None,
+    )
+
+
+def _download_stylized_pixel_model() -> None:
+    target_path = _stylized_pixel_model_path()
+    temp_path = target_path.with_suffix(f"{target_path.suffix}.part")
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    if temp_path.exists():
+        temp_path.unlink()
+
+    try:
+        with urllib.request.urlopen(_STYLIZED_PIXEL_DOWNLOAD_URL) as response:
+            with temp_path.open("wb") as destination:
+                shutil.copyfileobj(response, destination)
+        temp_path.replace(target_path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def _build_vibetube_avatar_pack_response(profile_id: str) -> models.VibeTubeAvatarPackResponse:
@@ -101,6 +182,46 @@ def _build_vibetube_avatar_pack_response(profile_id: str) -> models.VibeTubeAvat
     return models.VibeTubeAvatarPackResponse(
         profile_id=profile_id,
         idle_url=idle_url,
+        talk_url=talk_url,
+        idle_blink_url=idle_blink_url,
+        talk_blink_url=talk_blink_url,
+        complete=bool(idle_url and talk_url and idle_blink_url and talk_blink_url),
+    )
+
+
+def _build_vibetube_avatar_preview_response(profile_id: str) -> models.VibeTubeAvatarPreviewResponse:
+    preview_dir = _vibetube_avatar_preview_dir(profile_id)
+
+    def _state_url(state: str) -> Optional[str]:
+        file_path = preview_dir / f"{state}.png"
+        if not file_path.exists():
+            return None
+        return f"/profiles/{profile_id}/vibetube-avatar-preview/{state}"
+
+    idle_url = _state_url("idle")
+    talk_url = _state_url("talk")
+    idle_blink_url = _state_url("idle_blink")
+    talk_blink_url = _state_url("talk_blink")
+    idle_ready = False
+    idle_path = preview_dir / "idle.png"
+    if idle_path.exists():
+        try:
+            with Image.open(idle_path) as idle_img:
+                rgba = idle_img.convert("RGBA")
+                alpha = rgba.getchannel("A")
+                alpha_hist = alpha.histogram()
+                non_transparent = sum(alpha_hist[1:])
+                # Reject fully/mostly empty or effectively flat placeholders.
+                rgb_extrema = rgba.convert("RGB").getextrema()
+                flat_rgb = all(ch_min == ch_max for ch_min, ch_max in rgb_extrema)
+                idle_ready = non_transparent >= 50 and not flat_rgb
+        except Exception:
+            idle_ready = False
+
+    return models.VibeTubeAvatarPreviewResponse(
+        profile_id=profile_id,
+        idle_url=idle_url,
+        idle_ready=idle_ready,
         talk_url=talk_url,
         idle_blink_url=idle_blink_url,
         talk_blink_url=talk_blink_url,
@@ -688,6 +809,196 @@ async def get_vibetube_avatar_pack_state(
         raise HTTPException(status_code=404, detail="Avatar state not found")
 
     return FileResponse(file_path)
+
+
+@app.post(
+    "/profiles/{profile_id}/vibetube-avatar-pack/generate-idle-preview",
+    response_model=models.VibeTubeAvatarPreviewResponse,
+)
+async def generate_vibetube_avatar_idle_preview(
+    profile_id: str,
+    data: models.VibeTubeAvatarGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate idle preview only (step 1 of 2-stage avatar generation)."""
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    preview_dir = _vibetube_avatar_preview_dir(profile_id)
+    if preview_dir.exists():
+        shutil.rmtree(preview_dir, ignore_errors=True)
+    preview_dir.mkdir(parents=True, exist_ok=True)
+
+    max_attempts = 3
+    base_seed = data.seed if data.seed is not None else random.randint(1, 2_147_000_000)
+    style_ref_paths = _list_avatar_style_references() if data.match_existing_style else []
+    pack_idle_path = _vibetube_avatar_pack_dir(profile_id) / "idle.png"
+    reference_idle_paths = style_ref_paths or (
+        [pack_idle_path] if (data.match_existing_style and pack_idle_path.exists()) else []
+    )
+
+    try:
+        for attempt in range(max_attempts):
+            try:
+                attempt_seed = base_seed + (attempt * 9973)
+                avatar_local.generate_avatar_idle(
+                    profile_id=profile_id,
+                    out_dir=preview_dir,
+                    user_prompt=data.prompt,
+                    model_id=(data.model_id or _DEFAULT_AVATAR_MODEL_ID),
+                    lora_id=(data.lora_id or _DEFAULT_AVATAR_LORA_ID),
+                    lora_scale=data.lora_scale,
+                    seed=attempt_seed,
+                    size=data.size,
+                    output_size=data.output_size,
+                    palette_colors=data.palette_colors,
+                    negative_prompt=(data.negative_prompt or avatar_local.DEFAULT_NEGATIVE_PROMPT),
+                    num_inference_steps=data.num_inference_steps,
+                    guidance_scale=data.guidance_scale,
+                    reference_idle_path=(reference_idle_paths[0] if reference_idle_paths else None),
+                    reference_idle_paths=reference_idle_paths,
+                    reference_strength=data.reference_strength,
+                )
+                break
+            except avatar_local.AvatarGenerationError as exc:
+                msg = str(exc).lower()
+                if "empty/fully transparent" in msg and attempt < (max_attempts - 1):
+                    continue
+                raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Avatar idle generation failed: {exc}")
+
+    return _build_vibetube_avatar_preview_response(profile_id)
+
+
+@app.post(
+    "/profiles/{profile_id}/vibetube-avatar-pack/generate-rest-preview",
+    response_model=models.VibeTubeAvatarPreviewResponse,
+)
+async def generate_vibetube_avatar_rest_preview(
+    profile_id: str,
+    data: models.VibeTubeAvatarGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate talk/idle_blink/talk_blink from existing idle preview (step 2 of 2)."""
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    preview_dir = _vibetube_avatar_preview_dir(profile_id)
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    preview_before = _build_vibetube_avatar_preview_response(profile_id)
+    if not preview_before.idle_url or not preview_before.idle_ready:
+        raise HTTPException(
+            status_code=400,
+            detail="Idle preview is missing or invalid. Generate a valid idle first.",
+        )
+
+    try:
+        avatar_local.generate_avatar_states_from_idle(
+            out_dir=preview_dir,
+            user_prompt=data.prompt,
+            model_id=(data.model_id or _DEFAULT_AVATAR_MODEL_ID),
+            lora_id=(data.lora_id or _DEFAULT_AVATAR_LORA_ID),
+            lora_scale=data.lora_scale,
+            seed=data.seed,
+            size=data.size,
+            output_size=data.output_size,
+            palette_colors=data.palette_colors,
+            seed_step=data.seed_step,
+            negative_prompt=(data.negative_prompt or avatar_local.DEFAULT_NEGATIVE_PROMPT),
+            num_inference_steps=data.num_inference_steps,
+            guidance_scale=data.guidance_scale,
+            variation_strength=data.variation_strength,
+        )
+    except avatar_local.AvatarGenerationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Avatar state generation failed: {exc}")
+
+    return _build_vibetube_avatar_preview_response(profile_id)
+
+
+@app.post(
+    "/profiles/{profile_id}/vibetube-avatar-pack/generate",
+    response_model=models.VibeTubeAvatarPreviewResponse,
+)
+@app.post(
+    "/profiles/{profile_id}/vibetube-avatar-pack/generate-preview",
+    response_model=models.VibeTubeAvatarPreviewResponse,
+)
+async def generate_vibetube_avatar_pack(
+    profile_id: str,
+    data: models.VibeTubeAvatarGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """Legacy endpoint disabled: use strict two-step preview generation."""
+    raise HTTPException(
+        status_code=400,
+        detail="Use two-step generation: first /generate-idle-preview, then /generate-rest-preview.",
+    )
+
+
+@app.get(
+    "/profiles/{profile_id}/vibetube-avatar-preview",
+    response_model=models.VibeTubeAvatarPreviewResponse,
+)
+async def get_vibetube_avatar_preview(
+    profile_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get metadata for generated avatar preview states."""
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return _build_vibetube_avatar_preview_response(profile_id)
+
+
+@app.get("/profiles/{profile_id}/vibetube-avatar-preview/{state}")
+async def get_vibetube_avatar_preview_state(
+    profile_id: str,
+    state: str,
+    db: Session = Depends(get_db),
+):
+    """Serve generated avatar preview image by state."""
+    if state not in _VIBETUBE_AVATAR_STATES:
+        raise HTTPException(status_code=404, detail="Invalid state")
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    file_path = _vibetube_avatar_preview_dir(profile_id) / f"{state}.png"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Avatar preview state not found")
+    return FileResponse(file_path)
+
+
+@app.post(
+    "/profiles/{profile_id}/vibetube-avatar-pack/apply-preview",
+    response_model=models.VibeTubeAvatarPackResponse,
+)
+async def apply_vibetube_avatar_preview(
+    profile_id: str,
+    db: Session = Depends(get_db),
+):
+    """Apply generated preview states to the saved avatar pack."""
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    preview_dir = _vibetube_avatar_preview_dir(profile_id)
+    pack_dir = _vibetube_avatar_pack_dir(profile_id)
+    missing = [state for state in _VIBETUBE_AVATAR_STATES if not (preview_dir / f"{state}.png").exists()]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Preview states missing: {', '.join(sorted(missing))}")
+
+    pack_dir.mkdir(parents=True, exist_ok=True)
+    for state in _VIBETUBE_AVATAR_STATES:
+        shutil.copy2(preview_dir / f"{state}.png", pack_dir / f"{state}.png")
+
+    return _build_vibetube_avatar_pack_response(profile_id)
 
 
 @app.get("/profiles/{profile_id}/export")
@@ -2365,6 +2676,36 @@ async def trigger_model_download(request: models.ModelDownloadRequest):
 
     # Return immediately - frontend should poll progress endpoint
     return {"message": f"Model {request.model_name} download started"}
+
+
+@app.get("/image-models/stylizedpixel/status", response_model=models.ImageModelStatusResponse)
+async def get_stylizedpixel_image_model_status():
+    """Return download status for the optional StylizedPixel avatar test model."""
+    return _build_image_model_status()
+
+
+@app.post("/image-models/stylizedpixel/download")
+async def download_stylizedpixel_image_model():
+    """Download the optional StylizedPixel avatar test model in the background."""
+    task_manager = get_task_manager()
+    current_status = _build_image_model_status()
+
+    if current_status.downloaded:
+        return {"message": f"{_STYLIZED_PIXEL_DISPLAY_NAME} is already downloaded"}
+
+    if task_manager.is_download_active(_STYLIZED_PIXEL_MODEL_NAME):
+        return {"message": f"{_STYLIZED_PIXEL_DISPLAY_NAME} download already in progress"}
+
+    async def download_in_background():
+        try:
+            await asyncio.to_thread(_download_stylized_pixel_model)
+            task_manager.complete_download(_STYLIZED_PIXEL_MODEL_NAME)
+        except Exception as e:
+            task_manager.error_download(_STYLIZED_PIXEL_MODEL_NAME, str(e))
+
+    task_manager.start_download(_STYLIZED_PIXEL_MODEL_NAME)
+    asyncio.create_task(download_in_background())
+    return {"message": f"{_STYLIZED_PIXEL_DISPLAY_NAME} download started"}
 
 
 @app.delete("/models/{model_name}")
