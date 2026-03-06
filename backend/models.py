@@ -2,7 +2,7 @@
 Pydantic models for request/response validation.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -406,3 +406,45 @@ class StoryItemTrim(BaseModel):
 class StoryItemSplit(BaseModel):
     """Request model for splitting a story item."""
     split_time_ms: int = Field(..., ge=0)  # Time within the clip to split at (relative to clip start)
+
+
+class StoryBatchEntry(BaseModel):
+    """One sequential line item in a bulk story generation request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    profile_name: str = Field(..., min_length=1, max_length=100)
+    text: str = Field(..., min_length=1, max_length=5000)
+    language: str = Field(default="en", pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it)$")
+    seed: Optional[int] = Field(None, ge=0)
+    model_size: Optional[str] = Field(default="1.7B", pattern="^(1\\.7B|0\\.6B)$")
+    instruct: Optional[str] = Field(None, max_length=500)
+
+
+class StoryBatchCreateRequest(BaseModel):
+    """Request model for creating a full story from multiple generated entries."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    story_name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    entries: List[StoryBatchEntry] = Field(..., min_length=1)
+    auto_render: bool = False
+    render_settings: Optional[StoryVibeTubeRenderRequest] = None
+
+
+class StoryBatchEntryResult(BaseModel):
+    """Result metadata for a single generated row inside a story batch."""
+
+    index: int
+    profile_name: str
+    generation_id: str
+    story_item_id: str
+
+
+class StoryBatchCreateResponse(BaseModel):
+    """Response model for a completed bulk story generation/import request."""
+
+    story: StoryDetailResponse
+    results: List[StoryBatchEntryResult]
+    render_job: Optional[VibeTubeRenderResponse] = None

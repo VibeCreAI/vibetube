@@ -2,7 +2,7 @@
 Story management module.
 """
 
-from typing import List, Optional
+from typing import Awaitable, Callable, List, Optional
 from datetime import datetime
 import uuid
 import tempfile
@@ -20,10 +20,26 @@ from .models import (
     StoryItemMove,
     StoryItemTrim,
     StoryItemSplit,
+    StoryBatchCreateRequest,
+    StoryBatchCreateResponse,
+    StoryBatchEntryResult,
+    StoryVibeTubeRenderRequest,
+    GenerationRequest,
+    GenerationResponse,
+    VibeTubeRenderResponse,
 )
 from .database import Story as DBStory, StoryItem as DBStoryItem, Generation as DBGeneration, VoiceProfile as DBVoiceProfile
 from .utils.audio import load_audio, save_audio
 import numpy as np
+from . import history
+
+
+class StoryBatchValidationError(ValueError):
+    """Raised when a bulk story request fails validation before generation starts."""
+
+
+class StoryBatchGenerationError(RuntimeError):
+    """Raised when a bulk story request fails mid-generation and has been rolled back."""
 
 
 async def create_story(
@@ -970,3 +986,146 @@ async def export_story_audio(
     finally:
         # Clean up temp file
         Path(tmp_path).unlink(missing_ok=True)
+
+
+async def create_story_from_batch(
+    data: StoryBatchCreateRequest,
+    db: Session,
+    generate_func: Callable[[GenerationRequest, Session], Awaitable[GenerationResponse]],
+    render_func: Optional[
+        Callable[[str, StoryVibeTubeRenderRequest, Session], Awaitable[VibeTubeRenderResponse]]
+    ] = None,
+) -> StoryBatchCreateResponse:
+    """Create a new story by generating a sequence of lines with existing voice profiles."""
+    story_name = (data.story_name or "").strip()
+    if not story_name:
+        raise StoryBatchValidationError("story_name is required")
+
+    if not data.entries:
+        raise StoryBatchValidationError("entries must contain at least one item")
+
+    profile_map = {
+        (profile.name or "").strip(): profile
+        for profile in db.query(DBVoiceProfile).all()
+    }
+
+    missing_profiles: list[str] = []
+    resolved_entries: list[tuple[int, GenerationRequest, str]] = []
+
+    for index, entry in enumerate(data.entries):
+        profile_name = (entry.profile_name or "").strip()
+        text = (entry.text or "").strip()
+
+        if not profile_name:
+            raise StoryBatchValidationError(f"Entry {index + 1}: profile_name is required")
+        if not text:
+            raise StoryBatchValidationError(f'Entry {index + 1} ("{profile_name}"): text is required')
+
+        profile = profile_map.get(profile_name)
+        if not profile:
+            missing_profiles.append(f'entry {index + 1}: "{profile_name}"')
+            continue
+
+        resolved_entries.append(
+            (
+                index,
+                GenerationRequest(
+                    profile_id=profile.id,
+                    text=text,
+                    language=entry.language,
+                    seed=entry.seed,
+                    model_size=entry.model_size,
+                    instruct=entry.instruct,
+                ),
+                profile_name,
+            )
+        )
+
+    if missing_profiles:
+        raise StoryBatchValidationError(
+            "Unknown voice profiles in JSON/batch request: " + ", ".join(missing_profiles)
+        )
+
+    created_generation_ids: list[str] = []
+    created_story_id: Optional[str] = None
+
+    try:
+        generated_rows: list[tuple[int, str, GenerationResponse]] = []
+        for index, generation_request, profile_name in resolved_entries:
+            try:
+                generation = await generate_func(generation_request, db)
+            except Exception as exc:
+                detail = getattr(exc, "detail", None)
+                if isinstance(detail, dict):
+                    reason = detail.get("message") or str(detail)
+                else:
+                    reason = detail or str(exc)
+                raise StoryBatchGenerationError(
+                    f'Entry {index + 1} ("{profile_name}") failed: {reason}'
+                ) from exc
+
+            created_generation_ids.append(generation.id)
+            generated_rows.append((index, profile_name, generation))
+
+        story = await create_story(
+            StoryCreate(
+                name=story_name,
+                description=(data.description or "").strip() or None,
+            ),
+            db,
+        )
+        created_story_id = story.id
+
+        results: list[StoryBatchEntryResult] = []
+        for index, profile_name, generation in generated_rows:
+            item = await add_item_to_story(
+                story.id,
+                StoryItemCreate(generation_id=generation.id),
+                db,
+            )
+            if item is None:
+                raise StoryBatchGenerationError(
+                    f'Entry {index + 1} ("{profile_name}") could not be added to the story'
+                )
+
+            results.append(
+                StoryBatchEntryResult(
+                    index=index,
+                    profile_name=profile_name,
+                    generation_id=generation.id,
+                    story_item_id=item.id,
+                )
+            )
+
+        story_detail = await get_story(story.id, db)
+        if story_detail is None:
+            raise StoryBatchGenerationError("Story was created but could not be reloaded")
+
+        render_job: Optional[VibeTubeRenderResponse] = None
+        if data.auto_render and render_func is not None:
+            try:
+                render_job = await render_func(
+                    story.id,
+                    data.render_settings or StoryVibeTubeRenderRequest(),
+                    db,
+                )
+            except Exception:
+                render_job = None
+
+        return StoryBatchCreateResponse(
+            story=story_detail,
+            results=results,
+            render_job=render_job,
+        )
+    except Exception:
+        if created_story_id:
+            try:
+                await delete_story(created_story_id, db)
+            except Exception:
+                pass
+        for generation_id in created_generation_ids:
+            try:
+                await history.delete_generation(generation_id, db)
+            except Exception:
+                pass
+        raise

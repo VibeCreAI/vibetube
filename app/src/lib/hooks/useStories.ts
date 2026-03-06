@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import type {
+  StoryBatchCreateRequest,
+  StoryBatchCreateResponse,
   StoryCreate,
   StoryItemBatchUpdate,
   StoryItemCreate,
@@ -34,6 +36,38 @@ export function useCreateStory() {
     mutationFn: (data: StoryCreate) => apiClient.createStory(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stories'] });
+    },
+  });
+}
+
+export function useCreateStoryBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: StoryBatchCreateRequest) => apiClient.createStoryBatch(data),
+    onSuccess: (result: StoryBatchCreateResponse) => {
+      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      queryClient.invalidateQueries({ queryKey: ['history'] });
+      queryClient.invalidateQueries({ queryKey: ['stories', result.story.id] });
+      if (result.render_job) {
+        queryClient.invalidateQueries({ queryKey: ['vibetube-jobs'] });
+      }
+    },
+  });
+}
+
+export function useImportStoryJson() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => apiClient.importStoryJson(file),
+    onSuccess: (result: StoryBatchCreateResponse) => {
+      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      queryClient.invalidateQueries({ queryKey: ['history'] });
+      queryClient.invalidateQueries({ queryKey: ['stories', result.story.id] });
+      if (result.render_job) {
+        queryClient.invalidateQueries({ queryKey: ['vibetube-jobs'] });
+      }
     },
   });
 }

@@ -1,4 +1,4 @@
-import { Plus, BookOpen, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { BookOpen, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import {
   AlertDialog,
@@ -29,12 +29,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { useStories, useCreateStory, useUpdateStory, useDeleteStory } from '@/lib/hooks/useStories';
+import { useCreateStory, useDeleteStory, useStories, useUpdateStory } from '@/lib/hooks/useStories';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/format';
 import { useStoryStore } from '@/stores/storyStore';
 
-export function StoryList() {
+interface StoryListProps {
+  onOpenBatchCreate: () => void;
+}
+
+export function StoryList({ onOpenBatchCreate }: StoryListProps) {
   const { data: stories, isLoading } = useStories();
   const selectedStoryId = useStoryStore((state) => state.selectedStoryId);
   const setSelectedStoryId = useStoryStore((state) => state.setSelectedStoryId);
@@ -174,12 +178,18 @@ export function StoryList() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      <div className="flex items-center justify-between gap-2 mb-4 px-1">
         <h2 className="text-2xl font-bold">Stories</h2>
-        <Button onClick={() => setCreateDialogOpen(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          New Story
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={onOpenBatchCreate} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Bulk Create
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            New Story
+          </Button>
+        </div>
       </div>
 
       {/* Story List */}

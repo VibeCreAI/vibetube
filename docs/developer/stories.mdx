@@ -273,6 +273,8 @@ async def export_story_audio(story_id: str, db: Session) -> bytes:
 |--------|----------|-------------|
 | GET | `/stories` | List all stories |
 | POST | `/stories` | Create a story |
+| POST | `/stories/batch` | Create a new story from multiple generated rows |
+| POST | `/stories/import-json` | Import a JSON script and create a new story |
 | GET | `/stories/{id}` | Get story with items |
 | PUT | `/stories/{id}` | Update story metadata |
 | DELETE | `/stories/{id}` | Delete story |
@@ -318,3 +320,43 @@ The timeline UI needs to:
 4. **Handle edge drag** for trimming
 5. **Sync playhead** across all tracks
 6. **Export** when user clicks download
+
+## Bulk Story Creation
+
+Story mode also supports creating a new story from multiple generated rows in one request.
+
+### Batch Request
+
+`POST /stories/batch`
+
+```json
+{
+  "story_name": "Campfire Tale",
+  "description": "Optional",
+  "auto_render": false,
+  "entries": [
+    {
+      "profile_name": "Narrator",
+      "text": "It was a cold night in the woods."
+    },
+    {
+      "profile_name": "Wolf",
+      "text": "Who's there?",
+      "instruct": "low and suspicious"
+    }
+  ]
+}
+```
+
+Behavior:
+
+1. All `profile_name` values are validated before any generation begins.
+2. Entries are generated sequentially.
+3. If any entry fails, the batch is rolled back and no partial story remains.
+4. If `auto_render` is enabled, the new story is passed into the existing VibeTube story render path.
+
+### JSON Import
+
+`POST /stories/import-json`
+
+Upload a `.json` file containing the same schema as the batch request above.

@@ -7,13 +7,13 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clapperboard, Download, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,11 @@ import {
   useReorderStoryItems,
   useStory,
 } from '@/lib/hooks/useStories';
-import { getPersistedVibeTubeRenderSettings } from '@/lib/utils/vibetubeSettings';
-import { loadPersistedVibeTubeBackgroundImageData } from '@/lib/utils/vibetubeSettings';
 import { useStoryPlayback } from '@/lib/hooks/useStoryPlayback';
+import {
+  getPersistedVibeTubeRenderSettings,
+  loadPersistedVibeTubeBackgroundImageData,
+} from '@/lib/utils/vibetubeSettings';
 import { useStoryStore } from '@/stores/storyStore';
 import { SortableStoryChatItem } from './StoryChatItem';
 
@@ -89,7 +91,8 @@ export function StoryContent() {
       setSelectedStoryJobId(null);
       return;
     }
-    const stillValid = selectedStoryJobId && storyJobs.some((job) => job.job_id === selectedStoryJobId);
+    const stillValid =
+      selectedStoryJobId && storyJobs.some((job) => job.job_id === selectedStoryJobId);
     if (!stillValid) {
       setSelectedStoryJobId(storyJobs[0].job_id);
     }
@@ -338,7 +341,9 @@ export function StoryContent() {
   };
 
   const handleDeleteStoryRender = async (jobId: string) => {
-    const confirmed = await confirm('Delete this story render? This removes all files for this render.');
+    const confirmed = await confirm(
+      'Delete this story render? This removes all files for this render.',
+    );
     if (!confirmed) return;
 
     setIsDeletingStoryRender(true);
@@ -393,14 +398,14 @@ export function StoryContent() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
+      <div className="mb-4 px-1 space-y-3">
         <div>
           <h2 className="text-2xl font-bold">{story.name}</h2>
           {story.description && (
             <p className="text-sm text-muted-foreground mt-1">{story.description}</p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
@@ -475,7 +480,9 @@ export function StoryContent() {
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-base font-semibold">Story Video Preview</h3>
-              <p className="text-xs text-muted-foreground">Only renders generated from this story are shown here.</p>
+              <p className="text-xs text-muted-foreground">
+                Only renders generated from this story are shown here.
+              </p>
             </div>
             <div className="flex items-center gap-2">
               {selectedStoryJob && (
@@ -519,7 +526,9 @@ export function StoryContent() {
                 controls
                 preload="metadata"
                 src={apiClient.getVibeTubePreviewUrl(selectedStoryJob.job_id)}
-              />
+              >
+                <track kind="captions" />
+              </video>
               {storyJobs.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {storyJobs.map((job) => (
@@ -536,7 +545,9 @@ export function StoryContent() {
               )}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">No story render yet. Click "Render VibeTube" above.</div>
+            <div className="text-sm text-muted-foreground">
+              No story render yet. Click "Render VibeTube" above.
+            </div>
           )}
         </section>
 

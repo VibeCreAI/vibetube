@@ -62,6 +62,96 @@ from .utils.cache import clear_voice_prompt_cache
 from .utils import avatar_local
 from .platform_detect import get_backend_type
 
+
+async def generate_and_persist_speech(
+    data: models.GenerationRequest,
+    db: Session,
+) -> models.GenerationResponse:
+    """Shared speech generation path used by single and batch generation endpoints."""
+    task_manager = get_task_manager()
+    generation_task_id = str(uuid.uuid4())
+
+    try:
+        task_manager.start_generation(
+            task_id=generation_task_id,
+            profile_id=data.profile_id,
+            text=data.text,
+        )
+
+        profile = await profiles.get_profile(data.profile_id, db)
+        if not profile:
+            raise HTTPException(status_code=404, detail="Profile not found")
+
+        tts_model = tts.get_tts_model()
+        model_size = data.model_size or "1.7B"
+
+        if not tts_model._is_model_cached(model_size):
+            model_name = f"qwen-tts-{model_size}"
+
+            async def download_model_background():
+                try:
+                    await tts_model.load_model_async(model_size)
+                except Exception as e:
+                    task_manager.error_download(model_name, str(e))
+
+            task_manager.start_download(model_name)
+            asyncio.create_task(download_model_background())
+
+            raise HTTPException(
+                status_code=202,
+                detail={
+                    "message": f"Model {model_size} is being downloaded. Please wait and try again.",
+                    "model_name": model_name,
+                    "downloading": True,
+                },
+            )
+
+        await tts_model.load_model_async(model_size)
+
+        voice_prompt = await profiles.create_voice_prompt_for_profile(
+            data.profile_id,
+            db,
+        )
+
+        audio, sample_rate = await tts_model.generate(
+            data.text,
+            voice_prompt,
+            data.language,
+            data.seed,
+            data.instruct,
+        )
+
+        duration = len(audio) / sample_rate
+
+        audio_path = config.get_generations_dir() / f"{uuid.uuid4()}.wav"
+
+        from .utils.audio import save_audio
+
+        save_audio(audio, str(audio_path), sample_rate)
+
+        generation = await history.create_generation(
+            profile_id=data.profile_id,
+            text=data.text,
+            language=data.language,
+            audio_path=str(audio_path),
+            duration=duration,
+            seed=data.seed,
+            db=db,
+            instruct=data.instruct,
+        )
+
+        task_manager.complete_generation(generation_task_id)
+        return generation
+    except HTTPException:
+        task_manager.complete_generation(generation_task_id)
+        raise
+    except ValueError as e:
+        task_manager.complete_generation(generation_task_id)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        task_manager.complete_generation(generation_task_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
 app = FastAPI(
     title="VibeTube API",
     description="Production-quality Qwen3-TTS voice cloning API",
@@ -1165,106 +1255,7 @@ async def generate_speech(
     db: Session = Depends(get_db),
 ):
     """Generate speech from text using a voice profile."""
-    task_manager = get_task_manager()
-    generation_id = str(uuid.uuid4())
-    
-    try:
-        # Start tracking generation
-        task_manager.start_generation(
-            task_id=generation_id,
-            profile_id=data.profile_id,
-            text=data.text,
-        )
-        
-        # Get profile
-        profile = await profiles.get_profile(data.profile_id, db)
-        if not profile:
-            raise HTTPException(status_code=404, detail="Profile not found")
-        
-        # Generate audio
-
-        # Resolve model size and load the correct model FIRST.
-        # This must happen before create_voice_prompt_for_profile because that
-        # function calls load_model_async(None), which falls back to self.model_size.
-        # If the model is already loaded with the right size at that point, it
-        # returns immediately and the voice prompt is created by the correct model.
-        tts_model = tts.get_tts_model()
-        model_size = data.model_size or "1.7B"
-
-        # Check if model needs to be downloaded first
-        model_path = tts_model._get_model_path(model_size)
-        if not tts_model._is_model_cached(model_size):
-            # Model is not fully cached — kick off a background download and tell
-            # the client to retry once it's ready.
-            model_name = f"qwen-tts-{model_size}"
-
-            async def download_model_background():
-                try:
-                    await tts_model.load_model_async(model_size)
-                except Exception as e:
-                    task_manager.error_download(model_name, str(e))
-
-            task_manager.start_download(model_name)
-            asyncio.create_task(download_model_background())
-
-            raise HTTPException(
-                status_code=202,
-                detail={
-                    "message": f"Model {model_size} is being downloaded. Please wait and try again.",
-                    "model_name": model_name,
-                    "downloading": True,
-                },
-            )
-
-        # Load (or switch to) the requested model before building the voice prompt
-        await tts_model.load_model_async(model_size)
-
-        # Create voice prompt from profile (model is already loaded with correct size)
-        voice_prompt = await profiles.create_voice_prompt_for_profile(
-            data.profile_id,
-            db,
-        )
-
-        audio, sample_rate = await tts_model.generate(
-            data.text,
-            voice_prompt,
-            data.language,
-            data.seed,
-            data.instruct,
-        )
-
-        # Calculate duration
-        duration = len(audio) / sample_rate
-
-        # Save audio
-        audio_path = config.get_generations_dir() / f"{generation_id}.wav"
-
-        from .utils.audio import save_audio
-        save_audio(audio, str(audio_path), sample_rate)
-
-        # Create history entry
-        generation = await history.create_generation(
-            profile_id=data.profile_id,
-            text=data.text,
-            language=data.language,
-            audio_path=str(audio_path),
-            duration=duration,
-            seed=data.seed,
-            db=db,
-            instruct=data.instruct,
-        )
-        
-        # Mark generation as complete
-        task_manager.complete_generation(generation_id)
-        
-        return generation
-        
-    except ValueError as e:
-        task_manager.complete_generation(generation_id)
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        task_manager.complete_generation(generation_id)
-        raise HTTPException(status_code=500, detail=str(e))
+    return await generate_and_persist_speech(data, db)
 
 
 @app.post("/generate/stream")
@@ -1912,6 +1903,155 @@ async def transcribe_audio(
 # STORY ENDPOINTS
 # ============================================
 
+async def _render_story_vibetube_internal(
+    story_id: str,
+    data: models.StoryVibeTubeRenderRequest,
+    db: Session,
+) -> models.VibeTubeRenderResponse:
+    """Internal helper used by both the story render endpoint and batch story creation."""
+    story = db.query(DBStory).filter_by(id=story_id).first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    rows = (
+        db.query(DBStoryItem, DBGeneration)
+        .join(DBGeneration, DBStoryItem.generation_id == DBGeneration.id)
+        .filter(DBStoryItem.story_id == story_id)
+        .order_by(DBStoryItem.start_time_ms)
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=400, detail="Story has no items to render")
+
+    audio_bytes = await stories.export_story_audio(story_id, db)
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Story has no renderable audio items")
+
+    job_id = str(uuid.uuid4())
+    base_out = config.get_data_dir() / "vibetube" / job_id
+    avatar_root = base_out / "avatar"
+    avatar_root.mkdir(parents=True, exist_ok=True)
+
+    mixed_audio_path = base_out / "story.wav"
+    mixed_audio_path.write_bytes(audio_bytes)
+
+    profile_segments: dict[str, list[tuple[float, float]]] = {}
+    story_text_parts: list[str] = []
+
+    for item, generation in rows:
+        trim_start_ms = max(0, int(getattr(item, "trim_start_ms", 0) or 0))
+        trim_end_ms = max(0, int(getattr(item, "trim_end_ms", 0) or 0))
+        original_ms = max(0, int(round(float(generation.duration) * 1000)))
+        effective_ms = max(0, original_ms - trim_start_ms - trim_end_ms)
+        if effective_ms <= 0:
+            continue
+
+        start_sec = max(0.0, float(item.start_time_ms) / 1000.0)
+        end_sec = start_sec + (effective_ms / 1000.0)
+        profile_segments.setdefault(generation.profile_id, []).append((start_sec, end_sec))
+
+        text = (generation.text or "").strip()
+        if text:
+            story_text_parts.append(text)
+
+    if not profile_segments:
+        raise HTTPException(status_code=400, detail="Story has no effective audio after trim settings")
+
+    for profile_id in sorted(profile_segments.keys()):
+        profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+        profile_name = profile.name if profile else profile_id
+        pack_dir = _vibetube_avatar_pack_dir(profile_id)
+        if not (pack_dir / "idle.png").exists() or not (pack_dir / "talk.png").exists():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f'VibeTube avatar pack missing for profile "{profile_name}". '
+                    "Save idle/talk (and optional blink) images for each voice in this story."
+                ),
+            )
+
+        out_dir = avatar_root / profile_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pack_dir / "idle.png", out_dir / "idle.png")
+        shutil.copy2(pack_dir / "talk.png", out_dir / "talk.png")
+        if (pack_dir / "idle_blink.png").exists():
+            shutil.copy2(pack_dir / "idle_blink.png", out_dir / "idle_blink.png")
+        if (pack_dir / "talk_blink.png").exists():
+            shutil.copy2(pack_dir / "talk_blink.png", out_dir / "talk_blink.png")
+        if (pack_dir / "blink.png").exists():
+            shutil.copy2(pack_dir / "blink.png", out_dir / "blink.png")
+
+    avatar_dirs = {profile_id: avatar_root / profile_id for profile_id in profile_segments.keys()}
+    story_text = "\n".join(story_text_parts)
+    story_background_image_path: Optional[Path] = None
+    if data.use_background_image and data.background_image_data:
+        try:
+            story_background_image_path = base_out / "story_background.png"
+            _save_data_url_image(data.background_image_data, story_background_image_path)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    story_background_enabled = bool(
+        data.use_background
+        or data.use_background_color
+        or (data.use_background_image and story_background_image_path is not None)
+    )
+
+    render_result = vibetube.render_story_overlay(
+        audio_path=mixed_audio_path,
+        profile_segments=profile_segments,
+        avatar_dirs=avatar_dirs,
+        output_dir=base_out,
+        fps=data.fps,
+        width=data.width,
+        height=data.height,
+        on_threshold=data.on_threshold,
+        off_threshold=data.off_threshold,
+        smoothing_windows=data.smoothing_windows,
+        min_hold_windows=data.min_hold_windows,
+        blink_min_interval_sec=data.blink_min_interval_sec,
+        blink_max_interval_sec=data.blink_max_interval_sec,
+        blink_duration_frames=data.blink_duration_frames,
+        head_motion_amount_px=data.head_motion_amount_px,
+        head_motion_change_sec=data.head_motion_change_sec,
+        head_motion_smoothness=data.head_motion_smoothness,
+        voice_bounce_amount_px=data.voice_bounce_amount_px,
+        voice_bounce_sensitivity=data.voice_bounce_sensitivity,
+        use_background=story_background_enabled,
+        background_color=data.background_color if data.use_background_color else None,
+        background_image_path=story_background_image_path,
+        text=story_text,
+    )
+
+    source_text_preview = story_text.strip()[:1000] if story_text.strip() else None
+
+    meta_path = Path(render_result["meta_path"])
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception:
+        meta = {}
+    meta.update(
+        {
+            "source_story_id": story_id,
+            "source_story_name": story.name,
+            "source_text_preview": source_text_preview,
+        }
+    )
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    return models.VibeTubeRenderResponse(
+        job_id=job_id,
+        output_dir=str(base_out.resolve()),
+        video_path=str(Path(render_result["video_path"]).resolve()),
+        timeline_path=str(Path(render_result["timeline_path"]).resolve()),
+        captions_path=str(Path(render_result["captions_path"]).resolve())
+        if render_result["captions_path"]
+        else None,
+        meta_path=str(Path(render_result["meta_path"]).resolve()),
+        duration=float(render_result["duration_sec"]),
+        source_story_id=story_id,
+    )
+
 @app.get("/stories", response_model=List[models.StoryResponse])
 async def list_stories(db: Session = Depends(get_db)):
     """List all stories."""
@@ -1928,6 +2068,68 @@ async def create_story(
         return await stories.create_story(data, db)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/stories/batch", response_model=models.StoryBatchCreateResponse)
+async def create_story_batch(
+    data: models.StoryBatchCreateRequest,
+    db: Session = Depends(get_db),
+):
+    """Create a new story by generating multiple rows sequentially."""
+    try:
+        return await stories.create_story_from_batch(
+            data,
+            db,
+            generate_func=generate_and_persist_speech,
+            render_func=_render_story_vibetube_internal,
+        )
+    except stories.StoryBatchValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except stories.StoryBatchGenerationError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/stories/import-json", response_model=models.StoryBatchCreateResponse)
+async def import_story_json(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Import a JSON script and create a new multi-voice story."""
+    try:
+        if not file.filename or not file.filename.lower().endswith(".json"):
+            raise HTTPException(status_code=400, detail="Please upload a .json file")
+
+        raw_content = await file.read()
+        try:
+            payload = json.loads(raw_content.decode("utf-8"))
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="JSON file must be UTF-8 encoded")
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"Malformed JSON: {e.msg}")
+
+        try:
+            request = models.StoryBatchCreateRequest.model_validate(payload)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON schema: {e}")
+
+        return await stories.create_story_from_batch(
+            request,
+            db,
+            generate_func=generate_and_persist_speech,
+            render_func=_render_story_vibetube_internal,
+        )
+    except stories.StoryBatchValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except stories.StoryBatchGenerationError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/stories/{story_id}", response_model=models.StoryDetailResponse)
@@ -2119,148 +2321,7 @@ async def render_story_vibetube(
 ):
     """Render a full story into one multi-avatar VibeTube video."""
     try:
-        story = db.query(DBStory).filter_by(id=story_id).first()
-        if not story:
-            raise HTTPException(status_code=404, detail="Story not found")
-
-        rows = (
-            db.query(DBStoryItem, DBGeneration)
-            .join(DBGeneration, DBStoryItem.generation_id == DBGeneration.id)
-            .filter(DBStoryItem.story_id == story_id)
-            .order_by(DBStoryItem.start_time_ms)
-            .all()
-        )
-        if not rows:
-            raise HTTPException(status_code=400, detail="Story has no items to render")
-
-        audio_bytes = await stories.export_story_audio(story_id, db)
-        if not audio_bytes:
-            raise HTTPException(status_code=400, detail="Story has no renderable audio items")
-
-        job_id = str(uuid.uuid4())
-        base_out = config.get_data_dir() / "vibetube" / job_id
-        avatar_root = base_out / "avatar"
-        avatar_root.mkdir(parents=True, exist_ok=True)
-
-        mixed_audio_path = base_out / "story.wav"
-        mixed_audio_path.write_bytes(audio_bytes)
-
-        profile_segments: dict[str, list[tuple[float, float]]] = {}
-        story_text_parts: list[str] = []
-
-        for item, generation in rows:
-            trim_start_ms = max(0, int(getattr(item, "trim_start_ms", 0) or 0))
-            trim_end_ms = max(0, int(getattr(item, "trim_end_ms", 0) or 0))
-            original_ms = max(0, int(round(float(generation.duration) * 1000)))
-            effective_ms = max(0, original_ms - trim_start_ms - trim_end_ms)
-            if effective_ms <= 0:
-                continue
-
-            start_sec = max(0.0, float(item.start_time_ms) / 1000.0)
-            end_sec = start_sec + (effective_ms / 1000.0)
-            profile_segments.setdefault(generation.profile_id, []).append((start_sec, end_sec))
-
-            text = (generation.text or "").strip()
-            if text:
-                story_text_parts.append(text)
-
-        if not profile_segments:
-            raise HTTPException(status_code=400, detail="Story has no effective audio after trim settings")
-
-        for profile_id in sorted(profile_segments.keys()):
-            profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
-            profile_name = profile.name if profile else profile_id
-            pack_dir = _vibetube_avatar_pack_dir(profile_id)
-            if not (pack_dir / "idle.png").exists() or not (pack_dir / "talk.png").exists():
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f'VibeTube avatar pack missing for profile "{profile_name}". '
-                        "Save idle/talk (and optional blink) images for each voice in this story."
-                    ),
-                )
-
-            out_dir = avatar_root / profile_id
-            out_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(pack_dir / "idle.png", out_dir / "idle.png")
-            shutil.copy2(pack_dir / "talk.png", out_dir / "talk.png")
-            if (pack_dir / "idle_blink.png").exists():
-                shutil.copy2(pack_dir / "idle_blink.png", out_dir / "idle_blink.png")
-            if (pack_dir / "talk_blink.png").exists():
-                shutil.copy2(pack_dir / "talk_blink.png", out_dir / "talk_blink.png")
-            if (pack_dir / "blink.png").exists():
-                shutil.copy2(pack_dir / "blink.png", out_dir / "blink.png")
-
-        avatar_dirs = {profile_id: avatar_root / profile_id for profile_id in profile_segments.keys()}
-        story_text = "\n".join(story_text_parts)
-        story_background_image_path: Optional[Path] = None
-        if data.use_background_image and data.background_image_data:
-            try:
-                story_background_image_path = base_out / "story_background.png"
-                _save_data_url_image(data.background_image_data, story_background_image_path)
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-
-        story_background_enabled = bool(
-            data.use_background
-            or data.use_background_color
-            or (data.use_background_image and story_background_image_path is not None)
-        )
-
-        render_result = vibetube.render_story_overlay(
-            audio_path=mixed_audio_path,
-            profile_segments=profile_segments,
-            avatar_dirs=avatar_dirs,
-            output_dir=base_out,
-            fps=data.fps,
-            width=data.width,
-            height=data.height,
-            on_threshold=data.on_threshold,
-            off_threshold=data.off_threshold,
-            smoothing_windows=data.smoothing_windows,
-            min_hold_windows=data.min_hold_windows,
-            blink_min_interval_sec=data.blink_min_interval_sec,
-            blink_max_interval_sec=data.blink_max_interval_sec,
-            blink_duration_frames=data.blink_duration_frames,
-            head_motion_amount_px=data.head_motion_amount_px,
-            head_motion_change_sec=data.head_motion_change_sec,
-            head_motion_smoothness=data.head_motion_smoothness,
-            voice_bounce_amount_px=data.voice_bounce_amount_px,
-            voice_bounce_sensitivity=data.voice_bounce_sensitivity,
-            use_background=story_background_enabled,
-            background_color=data.background_color if data.use_background_color else None,
-            background_image_path=story_background_image_path,
-            text=story_text,
-        )
-
-        source_text_preview = story_text.strip()[:1000] if story_text.strip() else None
-
-        meta_path = Path(render_result["meta_path"])
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except Exception:
-            meta = {}
-        meta.update(
-            {
-                "source_story_id": story_id,
-                "source_story_name": story.name,
-                "source_text_preview": source_text_preview,
-            }
-        )
-        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-
-        return models.VibeTubeRenderResponse(
-            job_id=job_id,
-            output_dir=str(base_out.resolve()),
-            video_path=str(Path(render_result["video_path"]).resolve()),
-            timeline_path=str(Path(render_result["timeline_path"]).resolve()),
-            captions_path=str(Path(render_result["captions_path"]).resolve())
-            if render_result["captions_path"]
-            else None,
-            meta_path=str(Path(render_result["meta_path"]).resolve()),
-            duration=float(render_result["duration_sec"]),
-            source_story_id=story_id,
-        )
+        return await _render_story_vibetube_internal(story_id, data, db)
     except HTTPException:
         raise
     except vibetube.VibeTubeError as e:

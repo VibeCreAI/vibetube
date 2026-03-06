@@ -12,6 +12,8 @@ import type {
   ModelDownloadRequest,
   ModelStatusListResponse,
   ProfileSampleResponse,
+  StoryBatchCreateRequest,
+  StoryBatchCreateResponse,
   StoryCreate,
   StoryDetailResponse,
   StoryItemBatchUpdate,
@@ -275,9 +277,7 @@ class ApiClient {
     return response.blob();
   }
 
-  async importGeneration(
-    file: File,
-  ): Promise<{
+  async importGeneration(file: File): Promise<{
     id: string;
     profile_id: string;
     profile_name: string;
@@ -460,6 +460,33 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async createStoryBatch(data: StoryBatchCreateRequest): Promise<StoryBatchCreateResponse> {
+    return this.request<StoryBatchCreateResponse>('/stories/batch', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async importStoryJson(file: File): Promise<StoryBatchCreateResponse> {
+    const url = `${this.getBaseUrl()}/stories/import-json`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        detail: response.statusText,
+      }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 
   async getStory(storyId: string): Promise<StoryDetailResponse> {

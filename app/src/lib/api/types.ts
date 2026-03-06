@@ -34,6 +34,7 @@ export interface GenerationRequest {
   language: LanguageCode;
   seed?: number;
   model_size?: '1.7B' | '0.6B';
+  instruct?: string;
 }
 
 export interface GenerationResponse {
@@ -235,6 +236,36 @@ export interface StoryVibeTubeRenderRequest {
   use_background?: boolean;
   background_color?: string;
   background_image_data?: string;
+}
+
+export interface StoryBatchEntry {
+  profile_name: string;
+  text: string;
+  language?: LanguageCode;
+  seed?: number;
+  model_size?: '1.7B' | '0.6B';
+  instruct?: string;
+}
+
+export interface StoryBatchCreateRequest {
+  story_name: string;
+  description?: string;
+  entries: StoryBatchEntry[];
+  auto_render?: boolean;
+  render_settings?: StoryVibeTubeRenderRequest;
+}
+
+export interface StoryBatchEntryResult {
+  index: number;
+  profile_name: string;
+  generation_id: string;
+  story_item_id: string;
+}
+
+export interface StoryBatchCreateResponse {
+  story: StoryDetailResponse;
+  results: StoryBatchEntryResult[];
+  render_job?: VibeTubeRenderResponse | null;
 }
 
 export interface VibeTubeRenderRequest {
