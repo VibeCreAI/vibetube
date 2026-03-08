@@ -31,6 +31,7 @@ export interface VibeTubeRenderSettings {
   subtitle_bold: boolean;
   subtitle_italic: boolean;
   story_layout_style: 'balanced' | 'stage' | 'compact';
+  show_profile_names: boolean;
 }
 
 export const VIBETUBE_SETTING_KEYS = {
@@ -64,6 +65,7 @@ export const VIBETUBE_SETTING_KEYS = {
   subtitleBold: 'vibetube.settings.subtitleBold',
   subtitleItalic: 'vibetube.settings.subtitleItalic',
   storyLayoutStyle: 'vibetube.settings.storyLayoutStyle',
+  showProfileNames: 'vibetube.settings.showProfileNames',
 } as const;
 
 const BG_IMAGE_DB_NAME = 'vibetube-bg-db';
@@ -101,6 +103,7 @@ export const DEFAULT_VIBETUBE_RENDER_SETTINGS: VibeTubeRenderSettings = {
   subtitle_bold: true,
   subtitle_italic: false,
   story_layout_style: 'balanced',
+  show_profile_names: true,
 };
 
 function readNumber(storageKey: string, fallback: number): number {
@@ -299,6 +302,10 @@ export function getPersistedVibeTubeRenderSettings(): VibeTubeRenderSettings {
       VIBETUBE_SETTING_KEYS.storyLayoutStyle,
       DEFAULT_VIBETUBE_RENDER_SETTINGS.story_layout_style,
     ) as VibeTubeRenderSettings['story_layout_style'],
+    show_profile_names: readBoolean(
+      VIBETUBE_SETTING_KEYS.showProfileNames,
+      DEFAULT_VIBETUBE_RENDER_SETTINGS.show_profile_names,
+    ),
   };
 }
 

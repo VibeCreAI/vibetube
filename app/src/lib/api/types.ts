@@ -246,6 +246,7 @@ export interface StoryVibeTubeRenderRequest {
   subtitle_bold?: boolean;
   subtitle_italic?: boolean;
   story_layout_style?: 'balanced' | 'stage' | 'compact';
+  show_profile_names?: boolean;
 }
 
 export interface StoryBatchEntry {
@@ -312,6 +313,7 @@ export interface VibeTubeRenderRequest {
   subtitle_bold?: boolean;
   subtitle_italic?: boolean;
   story_layout_style?: 'balanced' | 'stage' | 'compact';
+  show_profile_names?: boolean;
   background_image?: File;
   idle?: File;
   talk?: File;

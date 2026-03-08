@@ -1344,6 +1344,7 @@ async def vibetube_render(
     subtitle_font_family: str = Form("sans", pattern="^(sans|serif|mono)$"),
     subtitle_bold: bool = Form(True),
     subtitle_italic: bool = Form(False),
+    show_profile_names: bool = Form(True),
     background_image: Optional[UploadFile] = File(None),
     idle: Optional[UploadFile] = File(None),
     talk: Optional[UploadFile] = File(None),
@@ -1436,6 +1437,11 @@ async def vibetube_render(
             await save_upload(background_image, background_image_path)
 
         background_enabled = bool(use_background or use_background_color or (use_background_image and background_image_path))
+        source_profile_name: Optional[str] = None
+        if avatar_profile_id:
+            profile = db.query(DBVoiceProfile).filter_by(id=avatar_profile_id).first()
+            if profile:
+                source_profile_name = profile.name
 
         render_result = vibetube.render_overlay(
             audio_path=audio_path,
@@ -1468,13 +1474,9 @@ async def vibetube_render(
             subtitle_font_family=subtitle_font_family,
             subtitle_bold=subtitle_bold,
             subtitle_italic=subtitle_italic,
+            show_profile_names=show_profile_names,
+            profile_display_name=source_profile_name,
         )
-
-        source_profile_name: Optional[str] = None
-        if avatar_profile_id:
-            profile = db.query(DBVoiceProfile).filter_by(id=avatar_profile_id).first()
-            if profile:
-                source_profile_name = profile.name
 
         meta_path = Path(render_result["meta_path"])
         try:
@@ -1952,6 +1954,7 @@ async def _render_story_vibetube_internal(
     mixed_audio_path.write_bytes(audio_bytes)
 
     profile_segments: dict[str, list[tuple[float, float]]] = {}
+    profile_display_names: dict[str, str] = {}
     story_text_parts: list[str] = []
     story_subtitle_cues: list[dict[str, int | str]] = []
 
@@ -1986,6 +1989,7 @@ async def _render_story_vibetube_internal(
     for profile_id in sorted(profile_segments.keys()):
         profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
         profile_name = profile.name if profile else profile_id
+        profile_display_names[profile_id] = profile_name
         pack_dir = _vibetube_avatar_pack_dir(profile_id)
         if not (pack_dir / "idle.png").exists() or not (pack_dir / "talk.png").exists():
             raise HTTPException(
@@ -2056,6 +2060,8 @@ async def _render_story_vibetube_internal(
         subtitle_bold=data.subtitle_bold,
         subtitle_italic=data.subtitle_italic,
         story_layout_style=data.story_layout_style,
+        show_profile_names=data.show_profile_names,
+        profile_display_names=profile_display_names,
         subtitle_cues=story_subtitle_cues,
     )
 

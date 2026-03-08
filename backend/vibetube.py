@@ -175,6 +175,8 @@ def render_story_overlay(
     subtitle_bold: bool = True,
     subtitle_italic: bool = False,
     story_layout_style: str = "balanced",
+    show_profile_names: bool = True,
+    profile_display_names: Optional[dict[str, str]] = None,
     subtitle_cues: Optional[list[dict[str, int | str]]] = None,
 ) -> dict:
     """Render a multi-profile VibeTube overlay from explicit speaking segments."""
@@ -281,6 +283,8 @@ def render_story_overlay(
         subtitle_font_family=subtitle_font_family,
         subtitle_bold=subtitle_bold,
         subtitle_italic=subtitle_italic,
+        show_profile_names=show_profile_names,
+        profile_display_names=profile_display_names or {},
     )
 
     captions_path = None
@@ -384,6 +388,8 @@ def render_overlay(
     subtitle_font_family: str = "sans",
     subtitle_bold: bool = True,
     subtitle_italic: bool = False,
+    show_profile_names: bool = True,
+    profile_display_name: Optional[str] = None,
     subtitle_cues: Optional[list[dict[str, int | str]]] = None,
 ) -> dict:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -451,6 +457,8 @@ def render_overlay(
         subtitle_font_family=subtitle_font_family,
         subtitle_bold=subtitle_bold,
         subtitle_italic=subtitle_italic,
+        show_profile_names=show_profile_names,
+        profile_display_name=profile_display_name,
     )
 
     captions_path = None
@@ -785,6 +793,8 @@ def _export_webm(
     subtitle_font_family: str,
     subtitle_bold: bool,
     subtitle_italic: bool,
+    show_profile_names: bool,
+    profile_display_name: Optional[str],
 ) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -854,6 +864,7 @@ def _export_webm(
         subtitle_outline_width=subtitle_outline_width,
     )
     subtitle_font_size = _subtitle_base_font_size(height)
+    name_tag_font = _load_name_tag_font(height)
     subtitle_cursor = 0
     background_cumulative_ms: Optional[list[int]] = None
     if background_durations_ms:
@@ -931,8 +942,15 @@ def _export_webm(
             )
             if frame_bytes is None:
                 raise VibeTubeError("Avatar assets were not loaded correctly.")
+            frame_image = Image.frombytes("RGBA", (width, height), frame_bytes)
+            if show_profile_names and profile_display_name:
+                _draw_single_profile_name_tag(
+                    image=frame_image,
+                    profile_display_name=profile_display_name,
+                    font=name_tag_font,
+                    subtitle_enabled=bool(subtitle_cues),
+                )
             if subtitle_cues:
-                frame_image = Image.frombytes("RGBA", (width, height), frame_bytes)
                 subtitle_cursor = _draw_subtitle_for_time(
                     image=frame_image,
                     subtitle_cues=subtitle_cues,
@@ -947,7 +965,7 @@ def _export_webm(
                 )
                 proc.stdin.write(frame_image.tobytes())
             else:
-                proc.stdin.write(frame_bytes)
+                proc.stdin.write(frame_image.tobytes())
     finally:
         proc.stdin.close()
 
@@ -1230,6 +1248,8 @@ def _export_story_webm(
     subtitle_font_family: str,
     subtitle_bold: bool,
     subtitle_italic: bool,
+    show_profile_names: bool,
+    profile_display_names: dict[str, str],
 ) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -1305,6 +1325,7 @@ def _export_story_webm(
         subtitle_outline_width=subtitle_outline_width,
     )
     subtitle_font_size = _subtitle_base_font_size(height)
+    name_tag_font = _load_name_tag_font(height)
     subtitle_cursor = 0
     background_cumulative_ms: Optional[list[int]] = None
     if background_durations_ms:
@@ -1390,6 +1411,13 @@ def _export_story_webm(
                     sprite,
                     (slot["x"] + offset_x, slot["y"] + offset_y + bounce_offset_y),
                 )
+                if show_profile_names:
+                    _draw_story_profile_name_tag(
+                        image=canvas,
+                        slot=slot,
+                        profile_display_name=profile_display_names.get(profile_id, profile_id),
+                        font=name_tag_font,
+                    )
 
             if subtitle_cues:
                 subtitle_cursor = _draw_subtitle_for_time(
@@ -1541,6 +1569,73 @@ def _subtitle_font_candidates(
         },
     }
     return family_map.get(family, family_map["sans"])[style_key]
+
+
+def _load_name_tag_font(height: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    return _load_subtitle_font(max(14, int(round(height * 0.024))), "sans", True, False)
+
+
+def _draw_story_profile_name_tag(
+    image: Image.Image,
+    slot: dict[str, int],
+    profile_display_name: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+) -> None:
+    label = (profile_display_name or "").strip()
+    if not label:
+        return
+    draw = ImageDraw.Draw(image, "RGBA")
+    bbox = draw.textbbox((0, 0), label, font=font)
+    text_width = max(1, bbox[2] - bbox[0])
+    text_height = max(1, bbox[3] - bbox[1])
+    pad_x = max(8, int(round(slot["width"] * 0.04)))
+    pad_y = max(4, int(round(slot["height"] * 0.03)))
+    box_width = text_width + pad_x * 2
+    box_height = text_height + pad_y * 2
+    x = slot["x"] + max(0, (slot["width"] - box_width) // 2)
+    y = min(
+        image.size[1] - box_height - 4,
+        slot["y"] + slot["height"] - box_height - max(4, int(round(slot["height"] * 0.02))),
+    )
+    draw.rounded_rectangle(
+        (x, y, x + box_width, y + box_height),
+        radius=max(8, int(round(box_height * 0.35))),
+        fill=(8, 15, 30, 180),
+        outline=(255, 255, 255, 48),
+        width=1,
+    )
+    draw.text((x + pad_x, y + pad_y - 1), label, font=font, fill=(255, 255, 255, 235))
+
+
+def _draw_single_profile_name_tag(
+    image: Image.Image,
+    profile_display_name: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    subtitle_enabled: bool,
+) -> None:
+    label = (profile_display_name or "").strip()
+    if not label:
+        return
+    draw = ImageDraw.Draw(image, "RGBA")
+    width, height = image.size
+    bbox = draw.textbbox((0, 0), label, font=font)
+    text_width = max(1, bbox[2] - bbox[0])
+    text_height = max(1, bbox[3] - bbox[1])
+    pad_x = max(10, int(round(width * 0.02)))
+    pad_y = max(5, int(round(height * 0.01)))
+    box_width = text_width + pad_x * 2
+    box_height = text_height + pad_y * 2
+    x = max(8, int(round((width - box_width) / 2.0)))
+    base_y_ratio = 0.72 if subtitle_enabled else 0.84
+    y = min(height - box_height - 8, max(8, int(round(height * base_y_ratio)) - box_height))
+    draw.rounded_rectangle(
+        (x, y, x + box_width, y + box_height),
+        radius=max(10, int(round(box_height * 0.4))),
+        fill=(8, 15, 30, 180),
+        outline=(255, 255, 255, 48),
+        width=1,
+    )
+    draw.text((x + pad_x, y + pad_y - 1), label, font=font, fill=(255, 255, 255, 235))
 
 
 def _draw_subtitle_for_time(

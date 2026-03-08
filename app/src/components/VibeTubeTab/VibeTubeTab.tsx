@@ -133,6 +133,10 @@ export function VibeTubeTab() {
     VIBETUBE_SETTING_KEYS.storyLayoutStyle,
     'balanced',
   );
+  const [showProfileNames, setShowProfileNames] = usePersistedBoolean(
+    VIBETUBE_SETTING_KEYS.showProfileNames,
+    true,
+  );
   const [, setBackgroundImageFile] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
   const sharedBackgroundImageData = useUIStore((state) => state.vibetubeBackgroundImageData);
@@ -384,6 +388,16 @@ export function VibeTubeTab() {
                     preserve more background.
                   </p>
                 </div>
+              </div>
+              <div className="flex items-center gap-2 pt-3">
+                <Checkbox
+                  id="vibetube-show-profile-names"
+                  checked={showProfileNames}
+                  onCheckedChange={(checked) => setShowProfileNames(checked === true)}
+                />
+                <label htmlFor="vibetube-show-profile-names" className="text-sm cursor-pointer">
+                  Show profile names under avatars
+                </label>
               </div>
             </div>
             <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-3 rounded-lg border border-border/60 bg-background/40 p-4">

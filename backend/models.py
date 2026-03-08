@@ -177,6 +177,7 @@ class StoryVibeTubeRenderRequest(BaseModel):
     subtitle_bold: bool = True
     subtitle_italic: bool = False
     story_layout_style: str = Field(default="balanced", pattern="^(balanced|stage|compact)$")
+    show_profile_names: bool = True
 
 
 class HistoryQuery(BaseModel):

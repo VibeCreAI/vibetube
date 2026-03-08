@@ -655,6 +655,8 @@ class ApiClient {
       formData.append('subtitle_bold', String(data.subtitle_bold));
     if (data.subtitle_italic !== undefined)
       formData.append('subtitle_italic', String(data.subtitle_italic));
+    if (data.show_profile_names !== undefined)
+      formData.append('show_profile_names', String(data.show_profile_names));
     if (data.background_image) formData.append('background_image', data.background_image);
 
     if (data.idle) formData.append('idle', data.idle);
