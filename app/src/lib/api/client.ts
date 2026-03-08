@@ -29,6 +29,7 @@ import type {
   VibeTubeAvatarGenerateRequest,
   VibeTubeAvatarPackResponse,
   VibeTubeAvatarPreviewResponse,
+  VibeTubeExportFormat,
   VibeTubeJobResponse,
   VibeTubeRenderRequest,
   VibeTubeRenderResponse,
@@ -680,14 +681,21 @@ class ApiClient {
     return `${this.getBaseUrl()}/vibetube/jobs/${jobId}/video`;
   }
 
-  async exportVibeTubeMp4(jobId: string): Promise<Blob> {
-    const url = `${this.getBaseUrl()}/vibetube/jobs/${jobId}/export-mp4`;
+  async exportVibeTubeVideo(
+    jobId: string,
+    format: VibeTubeExportFormat | 'auto' = 'auto',
+  ): Promise<Blob> {
+    const url = `${this.getBaseUrl()}/vibetube/jobs/${jobId}/export-video?format=${format}`;
     const response = await fetch(url);
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
       throw new Error(error.detail || `HTTP error! status: ${response.status}`);
     }
     return response.blob();
+  }
+
+  async exportVibeTubeMp4(jobId: string): Promise<Blob> {
+    return this.exportVibeTubeVideo(jobId, 'mp4');
   }
 
   async exportVibeTubeSubtitles(jobId: string, format: 'srt' | 'vtt' = 'srt'): Promise<Blob> {

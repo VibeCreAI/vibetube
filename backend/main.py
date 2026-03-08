@@ -1501,6 +1501,9 @@ async def vibetube_render(
             meta_path=str(Path(render_result["meta_path"]).resolve()),
             duration=float(render_result["duration_sec"]),
             source_generation_id=source_generation_id,
+            contains_transparency=bool(render_result.get("contains_transparency")),
+            alpha_verified=bool(render_result.get("alpha_verified")),
+            preferred_export_format=str(render_result.get("preferred_export_format") or "mp4"),
         )
     except HTTPException:
         raise
@@ -1519,6 +1522,72 @@ async def vibetube_job_video(job_id: str):
     return FileResponse(video_path, media_type="video/webm")
 
 
+def _load_vibetube_job_meta(job_dir: Path) -> dict:
+    meta_path = job_dir / "meta.json"
+    if not meta_path.exists():
+        return {}
+    try:
+        raw = meta_path.read_text(encoding="utf-8")
+        return json.loads(raw) if raw.strip() else {}
+    except Exception:
+        return {}
+
+
+def _vibetube_job_contains_transparency(
+    job_dir: Path,
+    meta: Optional[dict] = None,
+    probe_if_needed: bool = False,
+) -> bool:
+    resolved_meta = meta if meta is not None else _load_vibetube_job_meta(job_dir)
+
+    contains_transparency = resolved_meta.get("contains_transparency")
+    if isinstance(contains_transparency, bool):
+        return contains_transparency
+
+    alpha_meta = resolved_meta.get("alpha")
+    if isinstance(alpha_meta, dict):
+        alpha_verified = alpha_meta.get("verified")
+        if isinstance(alpha_verified, bool):
+            return alpha_verified
+
+    if probe_if_needed:
+        webm_path = job_dir / "avatar.webm"
+        if webm_path.exists():
+            try:
+                inspection = vibetube.inspect_video_alpha(webm_path)
+                return bool(inspection["contains_transparency"])
+            except Exception:
+                pass
+
+    return False
+
+
+def _vibetube_job_alpha_verified(meta: Optional[dict]) -> Optional[bool]:
+    if not isinstance(meta, dict):
+        return None
+    alpha_meta = meta.get("alpha")
+    if isinstance(alpha_meta, dict):
+        verified = alpha_meta.get("verified")
+        if isinstance(verified, bool):
+            return verified
+    contains_transparency = meta.get("contains_transparency")
+    if isinstance(contains_transparency, bool):
+        return contains_transparency
+    return None
+
+
+def _vibetube_job_preferred_export_format(
+    job_dir: Path,
+    meta: Optional[dict] = None,
+    probe_if_needed: bool = False,
+) -> str:
+    resolved_meta = meta if meta is not None else _load_vibetube_job_meta(job_dir)
+    preferred_export_format = resolved_meta.get("preferred_export_format")
+    if preferred_export_format in {"webm", "mp4", "mov"}:
+        return str(preferred_export_format)
+    return "webm" if _vibetube_job_contains_transparency(job_dir, resolved_meta, probe_if_needed) else "mp4"
+
+
 @app.get("/vibetube/jobs/{job_id}/export-mp4")
 async def vibetube_export_mp4(job_id: str):
     """Export rendered job as MP4 and return as downloadable file."""
@@ -1528,6 +1597,13 @@ async def vibetube_export_mp4(job_id: str):
 
     if not webm_path.exists():
         raise HTTPException(status_code=404, detail="Rendered video not found")
+
+    job_meta = _load_vibetube_job_meta(base_out)
+    if _vibetube_job_contains_transparency(base_out, job_meta, probe_if_needed=True):
+        raise HTTPException(
+            status_code=400,
+            detail="This VibeTube render contains transparency. Export WebM or MOV to preserve alpha.",
+        )
 
     try:
         vibetube.export_mp4(webm_path=webm_path, mp4_path=mp4_path)
@@ -1541,6 +1617,81 @@ async def vibetube_export_mp4(job_id: str):
         media_type="video/mp4",
         filename=f"vibetube-{job_id}.mp4",
     )
+
+
+@app.get("/vibetube/jobs/{job_id}/export-video")
+async def vibetube_export_video(
+    job_id: str,
+    format: str = Query(default="auto", pattern="^(auto|webm|mp4|mov)$"),
+):
+    """Export a rendered job in a format that preserves transparency when needed."""
+    base_out = config.get_data_dir() / "vibetube" / job_id
+    webm_path = base_out / "avatar.webm"
+    mp4_path = base_out / "avatar.mp4"
+    mov_path = base_out / "avatar-alpha.mov"
+
+    if not webm_path.exists():
+        raise HTTPException(status_code=404, detail="Rendered video not found")
+
+    job_meta = _load_vibetube_job_meta(base_out)
+    contains_transparency = _vibetube_job_contains_transparency(
+        base_out,
+        job_meta,
+        probe_if_needed=True,
+    )
+    preferred_export_format = _vibetube_job_preferred_export_format(
+        base_out,
+        job_meta,
+        probe_if_needed=True,
+    )
+    export_format = format
+    if export_format == "auto":
+        export_format = preferred_export_format
+
+    try:
+        if export_format == "webm":
+            if contains_transparency:
+                inspection = vibetube.inspect_video_alpha(webm_path)
+                if not bool(inspection["contains_transparency"]):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="WebM alpha could not be verified for this render. Export MOV instead.",
+                    )
+            return FileResponse(
+                webm_path,
+                media_type="video/webm",
+                filename=f"vibetube-{job_id}.webm",
+            )
+
+        if export_format == "mov":
+            if not mov_path.exists():
+                vibetube.export_prores_4444(source_path=webm_path, mov_path=mov_path)
+            if contains_transparency:
+                vibetube.verify_video_alpha(mov_path)
+            return FileResponse(
+                mov_path,
+                media_type="video/quicktime",
+                filename=f"vibetube-{job_id}.mov",
+            )
+
+        if contains_transparency:
+            raise HTTPException(
+                status_code=400,
+                detail="This VibeTube render contains transparency. Export WebM or MOV to preserve alpha.",
+            )
+
+        vibetube.export_mp4(webm_path=webm_path, mp4_path=mp4_path)
+        return FileResponse(
+            mp4_path,
+            media_type="video/mp4",
+            filename=f"vibetube-{job_id}.mp4",
+        )
+    except HTTPException:
+        raise
+    except vibetube.VibeTubeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Video export failed: {str(e)}")
 
 
 @app.get("/vibetube/jobs/{job_id}/export-subtitles")
@@ -1595,6 +1746,7 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
             continue
 
         meta_path = job_dir / "meta.json"
+        meta = _load_vibetube_job_meta(job_dir)
         created_ts = datetime.fromtimestamp(job_dir.stat().st_mtime)
         duration_sec: Optional[float] = None
         video_path: Optional[str] = None
@@ -1603,23 +1755,27 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
         source_story_name: Optional[str] = None
         source_profile_name: Optional[str] = None
         source_text_preview: Optional[str] = None
+        contains_transparency: Optional[bool] = None
+        alpha_verified: Optional[bool] = None
+        preferred_export_format: Optional[str] = None
 
-        if meta_path.exists():
+        if meta:
             try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 duration_sec = float(meta.get("duration_sec")) if meta.get("duration_sec") is not None else None
                 source_generation_id = meta.get("source_generation_id")
                 source_story_id = meta.get("source_story_id")
                 source_story_name = meta.get("source_story_name")
                 source_profile_name = meta.get("source_profile_name")
                 source_text_preview = meta.get("source_text_preview")
+                contains_transparency = _vibetube_job_contains_transparency(job_dir, meta)
+                alpha_verified = _vibetube_job_alpha_verified(meta)
+                preferred_export_format = _vibetube_job_preferred_export_format(job_dir, meta)
             except Exception:
                 duration_sec = None
 
         # Backfill metadata for older jobs that don't have source fields in meta.json.
         if source_generation_id is None and meta_path.exists():
             try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 audio_name = str(meta.get("audio") or "").strip()
                 if audio_name.lower().endswith(".wav"):
                     source_generation_id = Path(audio_name).stem
@@ -1639,7 +1795,6 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
         # Last-resort text preview fallback for old jobs: read first subtitle line from captions.srt.
         if not source_text_preview and meta_path.exists():
             try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
                 captions_name = str(meta.get("captions") or "").strip()
                 if captions_name:
                     source_text_preview = _extract_caption_preview(job_dir / captions_name)
@@ -1661,6 +1816,9 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
                 source_story_name=source_story_name,
                 source_profile_name=source_profile_name,
                 source_text_preview=source_text_preview,
+                contains_transparency=contains_transparency,
+                alpha_verified=alpha_verified,
+                preferred_export_format=preferred_export_format,
             )
         )
 
@@ -2091,6 +2249,9 @@ async def _render_story_vibetube_internal(
         meta_path=str(Path(render_result["meta_path"]).resolve()),
         duration=float(render_result["duration_sec"]),
         source_story_id=story_id,
+        contains_transparency=bool(render_result.get("contains_transparency")),
+        alpha_verified=bool(render_result.get("alpha_verified")),
+        preferred_export_format=str(render_result.get("preferred_export_format") or "mp4"),
     )
 
 @app.get("/stories", response_model=List[models.StoryResponse])

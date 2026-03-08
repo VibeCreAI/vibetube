@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
-import type { VibeTubeJobResponse } from '@/lib/api/types';
+import type { VibeTubeExportFormat, VibeTubeJobResponse } from '@/lib/api/types';
 import { useHistory } from '@/lib/hooks/useHistory';
 import {
   useAddStoryItem,
@@ -38,6 +38,25 @@ import {
 } from '@/lib/utils/vibetubeSettings';
 import { useStoryStore } from '@/stores/storyStore';
 import { SortableStoryChatItem } from './StoryChatItem';
+
+function getPrimaryStoryExportFormat(job: VibeTubeJobResponse | null): VibeTubeExportFormat {
+  if (!job) {
+    return 'mp4';
+  }
+  if (job.preferred_export_format === 'webm' || job.preferred_export_format === 'mov') {
+    return job.preferred_export_format;
+  }
+  if (job.contains_transparency) {
+    return 'mov';
+  }
+  return 'mp4';
+}
+
+function getStoryExportButtonLabel(format: VibeTubeExportFormat): string {
+  if (format === 'webm') return 'Export WebM';
+  if (format === 'mov') return 'Export MOV';
+  return 'Export MP4';
+}
 
 export function StoryContent() {
   const queryClient = useQueryClient();
@@ -85,6 +104,7 @@ export function StoryContent() {
     const selected = storyJobs.find((job) => job.job_id === selectedStoryJobId);
     return selected ?? storyJobs[0];
   }, [storyJobs, selectedStoryJobId]);
+  const primaryStoryExportFormat = getPrimaryStoryExportFormat(selectedStoryJob);
 
   useEffect(() => {
     if (!storyJobs.length) {
@@ -298,18 +318,26 @@ export function StoryContent() {
     );
   };
 
-  const handleExportStoryRenderMp4 = async (jobId: string) => {
+  const handleExportStoryRenderVideo = async (jobId: string, format: VibeTubeExportFormat) => {
     try {
-      const blob = await apiClient.exportVibeTubeMp4(jobId);
+      const blob = await apiClient.exportVibeTubeVideo(jobId, format);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `vibetube-story-${jobId}.mp4`;
+      link.download = `vibetube-story-${jobId}.${format}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      toast({ title: 'MP4 exported', description: 'Saved story render MP4.' });
+      toast({
+        title: `${format.toUpperCase()} exported`,
+        description:
+          format === 'webm'
+            ? 'Saved story render WebM with alpha.'
+            : format === 'mov'
+              ? 'Saved story render MOV with alpha.'
+              : 'Saved story render MP4.',
+      });
     } catch (error) {
       toast({
         title: 'Export failed',
@@ -489,10 +517,22 @@ export function StoryContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleExportStoryRenderMp4(selectedStoryJob.job_id)}
+                  onClick={() =>
+                    handleExportStoryRenderVideo(selectedStoryJob.job_id, primaryStoryExportFormat)
+                  }
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Export MP4
+                  {getStoryExportButtonLabel(primaryStoryExportFormat)}
+                </Button>
+              )}
+              {selectedStoryJob?.contains_transparency && primaryStoryExportFormat !== 'mov' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportStoryRenderVideo(selectedStoryJob.job_id, 'mov')}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export MOV
                 </Button>
               )}
               {selectedStoryJob && (

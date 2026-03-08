@@ -24,6 +24,23 @@ class VibeTubeError(RuntimeError):
 
 
 SUBTITLE_STYLE_VALUES = {"minimal", "cinema", "glass"}
+ALPHA_PIXEL_FORMAT_PREFIXES = ("yuva", "gbrap")
+ALPHA_PIXEL_FORMATS = {
+    "abgr",
+    "argb",
+    "bgra",
+    "gbrap",
+    "gbrap10le",
+    "gbrap12le",
+    "gbrap16le",
+    "rgba",
+    "yuva420p",
+    "yuva420p10le",
+    "yuva422p",
+    "yuva422p10le",
+    "yuva444p",
+    "yuva444p10le",
+}
 
 
 def _parse_background_rgba(use_background: bool, background_color: Optional[str]) -> Optional[tuple[int, int, int, int]]:
@@ -285,7 +302,22 @@ def render_story_overlay(
         subtitle_italic=subtitle_italic,
         show_profile_names=show_profile_names,
         profile_display_names=profile_display_names or {},
+        alpha_out_path=(output_dir / "avatar-alpha.mov") if not use_background else None,
     )
+
+    video_path = output_dir / "avatar.webm"
+    alpha_video_path = output_dir / "avatar-alpha.mov"
+    webm_alpha_inspection: Optional[dict[str, object]] = None
+    alpha_inspection: Optional[dict[str, object]] = None
+    preferred_export_format = "mp4"
+    if not use_background:
+        webm_alpha_inspection = inspect_video_alpha(video_path)
+        if bool(webm_alpha_inspection["contains_transparency"]):
+            alpha_inspection = webm_alpha_inspection
+            preferred_export_format = "webm"
+        else:
+            alpha_inspection = verify_video_alpha(alpha_video_path)
+            preferred_export_format = "mov"
 
     captions_path = None
     if generated_subtitle_cues:
@@ -302,6 +334,9 @@ def render_story_overlay(
         "duration_sec": round(duration_sec, 3),
         "audio": audio_path.name,
         "video": "avatar.webm",
+        "contains_transparency": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+        "preferred_export_format": preferred_export_format,
+        "transparent_video": alpha_video_path.name if alpha_video_path.exists() else None,
         "timeline": "timeline.json",
         "captions": captions_path.name if captions_path else None,
         "profiles": profile_ids,
@@ -346,6 +381,22 @@ def render_story_overlay(
         "profile_names": {
             "enabled": show_profile_names,
         },
+        "alpha": {
+            "expected": not use_background,
+            "verified": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+            "codec": alpha_inspection["codec_name"] if alpha_inspection else None,
+            "pix_fmt": alpha_inspection["pix_fmt"] if alpha_inspection else None,
+            "alpha_mode": alpha_inspection["alpha_mode"] if alpha_inspection else None,
+            "sample_count": int(alpha_inspection["sample_count"]) if alpha_inspection else 0,
+            "delivery_video": (
+                "avatar.webm" if preferred_export_format == "webm" else alpha_video_path.name
+            )
+            if alpha_inspection
+            else None,
+            "webm_verified": bool(
+                webm_alpha_inspection and webm_alpha_inspection["contains_transparency"]
+            ),
+        },
     }
     meta_path = output_dir / "meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -353,10 +404,13 @@ def render_story_overlay(
     return {
         "duration_sec": duration_sec,
         "frames": total_frames,
-        "video_path": str(output_dir / "avatar.webm"),
+        "video_path": str(video_path),
         "timeline_path": str(timeline_path),
         "captions_path": str(captions_path) if captions_path else None,
         "meta_path": str(meta_path),
+        "contains_transparency": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+        "alpha_verified": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+        "preferred_export_format": preferred_export_format,
     }
 
 
@@ -462,7 +516,22 @@ def render_overlay(
         subtitle_italic=subtitle_italic,
         show_profile_names=show_profile_names,
         profile_display_name=profile_display_name,
+        alpha_out_path=(output_dir / "avatar-alpha.mov") if not use_background else None,
     )
+
+    video_path = output_dir / "avatar.webm"
+    alpha_video_path = output_dir / "avatar-alpha.mov"
+    webm_alpha_inspection: Optional[dict[str, object]] = None
+    alpha_inspection: Optional[dict[str, object]] = None
+    preferred_export_format = "mp4"
+    if not use_background:
+        webm_alpha_inspection = inspect_video_alpha(video_path)
+        if bool(webm_alpha_inspection["contains_transparency"]):
+            alpha_inspection = webm_alpha_inspection
+            preferred_export_format = "webm"
+        else:
+            alpha_inspection = verify_video_alpha(alpha_video_path)
+            preferred_export_format = "mov"
 
     captions_path = None
     if generated_subtitle_cues:
@@ -479,6 +548,9 @@ def render_overlay(
         "duration_sec": round(duration_sec, 3),
         "audio": audio_path.name,
         "video": "avatar.webm",
+        "contains_transparency": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+        "preferred_export_format": preferred_export_format,
+        "transparent_video": alpha_video_path.name if alpha_video_path.exists() else None,
         "timeline": "timeline.json",
         "captions": captions_path.name if captions_path else None,
         "blink": {
@@ -513,6 +585,22 @@ def render_overlay(
         "profile_names": {
             "enabled": show_profile_names,
         },
+        "alpha": {
+            "expected": not use_background,
+            "verified": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+            "codec": alpha_inspection["codec_name"] if alpha_inspection else None,
+            "pix_fmt": alpha_inspection["pix_fmt"] if alpha_inspection else None,
+            "alpha_mode": alpha_inspection["alpha_mode"] if alpha_inspection else None,
+            "sample_count": int(alpha_inspection["sample_count"]) if alpha_inspection else 0,
+            "delivery_video": (
+                "avatar.webm" if preferred_export_format == "webm" else alpha_video_path.name
+            )
+            if alpha_inspection
+            else None,
+            "webm_verified": bool(
+                webm_alpha_inspection and webm_alpha_inspection["contains_transparency"]
+            ),
+        },
     }
     meta_path = output_dir / "meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -520,10 +608,13 @@ def render_overlay(
     return {
         "duration_sec": duration_sec,
         "frames": total_frames,
-        "video_path": str(output_dir / "avatar.webm"),
+        "video_path": str(video_path),
         "timeline_path": str(timeline_path),
         "captions_path": str(captions_path) if captions_path else None,
         "meta_path": str(meta_path),
+        "contains_transparency": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+        "alpha_verified": bool(alpha_inspection and alpha_inspection["contains_transparency"]),
+        "preferred_export_format": preferred_export_format,
     }
 
 
@@ -559,6 +650,181 @@ def export_mp4(webm_path: Path, mp4_path: Path) -> Path:
         raise VibeTubeError(f"ffmpeg MP4 export failed: {proc.stderr}")
 
     return mp4_path
+
+
+def export_prores_4444(source_path: Path, mov_path: Path) -> Path:
+    """Transcode rendered video to MOV ProRes 4444 while preserving alpha."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise VibeTubeError("ffmpeg not found on PATH.")
+
+    if not source_path.exists():
+        raise VibeTubeError(f"Rendered video not found: {source_path}")
+
+    mov_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        ffmpeg,
+        "-y",
+        "-i",
+        str(source_path),
+        "-c:v",
+        "prores_ks",
+        "-profile:v",
+        "4444",
+        "-pix_fmt",
+        "yuva444p10le",
+        "-c:a",
+        "pcm_s16le",
+        str(mov_path),
+    ]
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise VibeTubeError(f"ffmpeg MOV export failed: {proc.stderr}")
+
+    return mov_path
+
+
+def inspect_video_alpha(video_path: Path) -> dict[str, object]:
+    """Inspect a rendered video and report whether it contains real transparency."""
+    ffprobe = shutil.which("ffprobe")
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffprobe:
+        raise VibeTubeError("ffprobe not found on PATH.")
+    if not ffmpeg:
+        raise VibeTubeError("ffmpeg not found on PATH.")
+    if not video_path.exists():
+        raise VibeTubeError(f"Rendered video not found: {video_path}")
+
+    probe_cmd = [
+        ffprobe,
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_name,pix_fmt,width,height:stream_tags=alpha_mode:format=duration",
+        "-of",
+        "json",
+        str(video_path),
+    ]
+    probe_proc = subprocess.run(probe_cmd, capture_output=True, text=True)
+    if probe_proc.returncode != 0:
+        raise VibeTubeError(f"ffprobe alpha inspection failed: {probe_proc.stderr}")
+
+    try:
+        probe_data = json.loads(probe_proc.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise VibeTubeError("Could not parse ffprobe output while verifying alpha.") from exc
+
+    streams = probe_data.get("streams") or []
+    if not streams:
+        raise VibeTubeError("No video stream found while verifying alpha.")
+
+    stream = streams[0]
+    width = int(stream.get("width") or 0)
+    height = int(stream.get("height") or 0)
+    if width <= 0 or height <= 0:
+        raise VibeTubeError("Invalid video dimensions while verifying alpha.")
+
+    pix_fmt = str(stream.get("pix_fmt") or "")
+    codec_name = str(stream.get("codec_name") or "")
+    tags = stream.get("tags") or {}
+    alpha_mode = str(tags.get("alpha_mode") or "")
+
+    format_info = probe_data.get("format") or {}
+    duration_raw = format_info.get("duration")
+    try:
+        duration_sec = float(duration_raw) if duration_raw not in (None, "", "N/A") else 0.0
+    except (TypeError, ValueError):
+        duration_sec = 0.0
+
+    sample_count, min_alpha, max_alpha = _decode_frame_alpha_stats(
+        ffmpeg=ffmpeg,
+        video_path=video_path,
+        width=width,
+        height=height,
+    )
+    contains_transparency = min_alpha < 255
+
+    supports_alpha = (
+        alpha_mode == "1"
+        or pix_fmt in ALPHA_PIXEL_FORMATS
+        or pix_fmt.startswith(ALPHA_PIXEL_FORMAT_PREFIXES)
+    )
+
+    return {
+        "codec_name": codec_name,
+        "pix_fmt": pix_fmt,
+        "alpha_mode": alpha_mode or None,
+        "duration_sec": duration_sec,
+        "sample_count": sample_count,
+        "supports_alpha": supports_alpha,
+        "contains_transparency": contains_transparency,
+        "min_alpha": min_alpha,
+        "max_alpha": max_alpha,
+    }
+
+
+def verify_video_alpha(video_path: Path) -> dict[str, object]:
+    """Raise if a video expected to be transparent no longer contains alpha."""
+    inspection = inspect_video_alpha(video_path)
+    if not bool(inspection["contains_transparency"]):
+        codec_name = str(inspection.get("codec_name") or "unknown")
+        pix_fmt = str(inspection.get("pix_fmt") or "unknown")
+        raise VibeTubeError(
+            "Transparent VibeTube export failed alpha verification "
+            f"(codec={codec_name}, pix_fmt={pix_fmt})."
+        )
+    return inspection
+
+
+def _decode_frame_alpha_stats(
+    ffmpeg: str,
+    video_path: Path,
+    width: int,
+    height: int,
+    max_frames: int = 3,
+) -> tuple[int, int, int]:
+    cmd = [
+        ffmpeg,
+        "-v",
+        "error",
+        "-i",
+        str(video_path),
+        "-frames:v",
+        str(max(1, int(max_frames))),
+        "-an",
+        "-sn",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "-",
+    ]
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", errors="ignore")
+        raise VibeTubeError(f"ffmpeg alpha probe failed: {stderr}")
+
+    frame_len = width * height * 4
+    frame_count = len(proc.stdout) // frame_len
+    if frame_count <= 0:
+        raise VibeTubeError("ffmpeg alpha probe returned incomplete frame data.")
+
+    min_alpha = 255
+    max_alpha = 255
+    for frame_idx in range(frame_count):
+        start = frame_idx * frame_len
+        end = start + frame_len
+        alpha_bytes = proc.stdout[start + 3:end:4]
+        if not alpha_bytes:
+            continue
+        min_alpha = min(min_alpha, min(alpha_bytes))
+        max_alpha = max(max_alpha, max(alpha_bytes))
+
+    return (frame_count, min_alpha, max_alpha)
 
 
 def _wav_duration_seconds(wav_path: Path) -> float:
@@ -801,6 +1067,7 @@ def _export_webm(
     subtitle_italic: bool,
     show_profile_names: bool,
     profile_display_name: Optional[str],
+    alpha_out_path: Optional[Path] = None,
 ) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -835,6 +1102,42 @@ def _export_webm(
 
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert proc.stdin is not None
+    alpha_proc: Optional[subprocess.Popen] = None
+    if alpha_out_path is not None:
+        alpha_out_path.parent.mkdir(parents=True, exist_ok=True)
+        alpha_cmd = [
+            ffmpeg,
+            "-y",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgba",
+            "-s",
+            f"{width}x{height}",
+            "-r",
+            str(fps),
+            "-i",
+            "-",
+            "-i",
+            str(audio_path),
+            "-c:v",
+            "prores_ks",
+            "-profile:v",
+            "4444",
+            "-pix_fmt",
+            "yuva444p10le",
+            "-c:a",
+            "pcm_s16le",
+            "-shortest",
+            str(alpha_out_path),
+        ]
+        alpha_proc = subprocess.Popen(
+            alpha_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert alpha_proc.stdin is not None
 
     change_idx = 0
     current_state = str(timeline[0]["state"]) if timeline else "idle"
@@ -969,15 +1272,24 @@ def _export_webm(
                     subtitle_italic=subtitle_italic,
                     cue_cursor=subtitle_cursor,
                 )
-                proc.stdin.write(frame_image.tobytes())
-            else:
-                proc.stdin.write(frame_image.tobytes())
+            frame_output = frame_image.tobytes()
+            proc.stdin.write(frame_output)
+            if alpha_proc is not None and alpha_proc.stdin is not None:
+                alpha_proc.stdin.write(frame_output)
     finally:
         proc.stdin.close()
+        if alpha_proc is not None and alpha_proc.stdin is not None:
+            alpha_proc.stdin.close()
 
     _, stderr = proc.communicate()
     if proc.returncode != 0:
         raise VibeTubeError(f"ffmpeg failed: {stderr.decode('utf-8', errors='ignore')}")
+    if alpha_proc is not None:
+        _, alpha_stderr = alpha_proc.communicate()
+        if alpha_proc.returncode != 0:
+            raise VibeTubeError(
+                f"ffmpeg MOV failed: {alpha_stderr.decode('utf-8', errors='ignore')}"
+            )
 
 
 def _frame_bytes_for_asset(
@@ -1256,6 +1568,7 @@ def _export_story_webm(
     subtitle_italic: bool,
     show_profile_names: bool,
     profile_display_names: dict[str, str],
+    alpha_out_path: Optional[Path] = None,
 ) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
@@ -1290,6 +1603,42 @@ def _export_story_webm(
 
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     assert proc.stdin is not None
+    alpha_proc: Optional[subprocess.Popen] = None
+    if alpha_out_path is not None:
+        alpha_out_path.parent.mkdir(parents=True, exist_ok=True)
+        alpha_cmd = [
+            ffmpeg,
+            "-y",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgba",
+            "-s",
+            f"{width}x{height}",
+            "-r",
+            str(fps),
+            "-i",
+            "-",
+            "-i",
+            str(audio_path),
+            "-c:v",
+            "prores_ks",
+            "-profile:v",
+            "4444",
+            "-pix_fmt",
+            "yuva444p10le",
+            "-c:a",
+            "pcm_s16le",
+            "-shortest",
+            str(alpha_out_path),
+        ]
+        alpha_proc = subprocess.Popen(
+            alpha_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert alpha_proc.stdin is not None
 
     min_interval = max(0.2, float(blink_min_interval_sec))
     max_interval = max(min_interval, float(blink_max_interval_sec))
@@ -1438,13 +1787,24 @@ def _export_story_webm(
                     subtitle_italic=subtitle_italic,
                     cue_cursor=subtitle_cursor,
                 )
-            proc.stdin.write(canvas.tobytes())
+            frame_output = canvas.tobytes()
+            proc.stdin.write(frame_output)
+            if alpha_proc is not None and alpha_proc.stdin is not None:
+                alpha_proc.stdin.write(frame_output)
     finally:
         proc.stdin.close()
+        if alpha_proc is not None and alpha_proc.stdin is not None:
+            alpha_proc.stdin.close()
 
     _, stderr = proc.communicate()
     if proc.returncode != 0:
         raise VibeTubeError(f"ffmpeg failed: {stderr.decode('utf-8', errors='ignore')}")
+    if alpha_proc is not None:
+        _, alpha_stderr = alpha_proc.communicate()
+        if alpha_proc.returncode != 0:
+            raise VibeTubeError(
+                f"ffmpeg MOV failed: {alpha_stderr.decode('utf-8', errors='ignore')}"
+            )
 
 
 def _write_srt(text: str, duration_sec: float, out_path: Path) -> None:

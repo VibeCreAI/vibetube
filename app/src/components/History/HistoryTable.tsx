@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AudioWaveform,
   Clapperboard,
@@ -28,7 +29,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
-import type { HistoryResponse, VibeTubeJobResponse } from '@/lib/api/types';
+import type { HistoryResponse, VibeTubeExportFormat, VibeTubeJobResponse } from '@/lib/api/types';
 import { BOTTOM_SAFE_AREA_PADDING } from '@/lib/constants/ui';
 import {
   useDeleteGeneration,
@@ -43,10 +44,28 @@ import {
   getPersistedVibeTubeRenderSettings,
 } from '@/lib/utils/vibetubeSettings';
 import { usePlayerStore } from '@/stores/playerStore';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 // OLD TABLE-BASED COMPONENT - REMOVED (can be found in git history)
 // This is the new alternate history view with fixed height rows
+
+function getPrimaryVibeExportFormat(job: VibeTubeJobResponse | null): VibeTubeExportFormat {
+  if (!job) {
+    return 'mp4';
+  }
+  if (job.preferred_export_format === 'webm' || job.preferred_export_format === 'mov') {
+    return job.preferred_export_format;
+  }
+  if (job.contains_transparency) {
+    return 'mov';
+  }
+  return 'mp4';
+}
+
+function getExportButtonLabel(format: VibeTubeExportFormat): string {
+  if (format === 'webm') return 'Export WebM';
+  if (format === 'mov') return 'Export MOV';
+  return 'Export MP4';
+}
 
 // NEW ALTERNATE HISTORY VIEW - FIXED HEIGHT ROWS WITH INFINITE SCROLL
 export function HistoryTable() {
@@ -61,7 +80,9 @@ export function HistoryTable() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [generationToDelete, setGenerationToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [generationToDelete, setGenerationToDelete] = useState<{ id: string; name: string } | null>(
+    null,
+  );
   const [vibeDialogOpen, setVibeDialogOpen] = useState(false);
   const [selectedGeneration, setSelectedGeneration] = useState<HistoryResponse | null>(null);
   const [selectedVibeJobId, setSelectedVibeJobId] = useState<string | null>(null);
@@ -209,9 +230,7 @@ export function HistoryTable() {
     if (!jobs.length) {
       return null;
     }
-    jobs.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
+    jobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return jobs[0] ?? null;
   };
 
@@ -277,6 +296,7 @@ export function HistoryTable() {
   );
   const selectedVibeJob =
     linkedJobs.find((job) => job.job_id === selectedVibeJobId) ?? linkedJobs[0] ?? null;
+  const primaryVibeExportFormat = getPrimaryVibeExportFormat(selectedVibeJob);
 
   const handleDeleteVibeRender = async (jobId: string) => {
     const confirmed = await confirm('Delete this linked VibeTube render?');
@@ -300,18 +320,26 @@ export function HistoryTable() {
     }
   };
 
-  const handleExportVibeMp4 = async (jobId: string) => {
+  const handleExportVibeVideo = async (jobId: string, format: VibeTubeExportFormat) => {
     try {
-      const blob = await apiClient.exportVibeTubeMp4(jobId);
+      const blob = await apiClient.exportVibeTubeVideo(jobId, format);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `vibetube-${jobId}.mp4`;
+      link.download = `vibetube-${jobId}.${format}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      toast({ title: 'MP4 exported', description: 'Saved linked VibeTube MP4.' });
+      toast({
+        title: `${format.toUpperCase()} exported`,
+        description:
+          format === 'webm'
+            ? 'Saved linked VibeTube WebM with alpha.'
+            : format === 'mov'
+              ? 'Saved linked VibeTube MOV with alpha.'
+              : 'Saved linked VibeTube MP4.',
+      });
     } catch (error) {
       toast({
         title: 'Export failed',
@@ -540,7 +568,8 @@ export function HistoryTable() {
           <DialogHeader>
             <DialogTitle>Delete Generation</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this generation from "{generationToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete this generation from "{generationToDelete?.name}"?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -615,7 +644,9 @@ export function HistoryTable() {
                   disabled={renderingGenerationIds.has(selectedGeneration.id)}
                 >
                   <Clapperboard className="mr-2 h-4 w-4" />
-                  {renderingGenerationIds.has(selectedGeneration.id) ? 'Rendering...' : 'Render New'}
+                  {renderingGenerationIds.has(selectedGeneration.id)
+                    ? 'Rendering...'
+                    : 'Render New'}
                 </Button>
               )}
               {selectedVibeJob && (
@@ -623,11 +654,23 @@ export function HistoryTable() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleExportVibeMp4(selectedVibeJob.job_id)}
+                    onClick={() =>
+                      handleExportVibeVideo(selectedVibeJob.job_id, primaryVibeExportFormat)
+                    }
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    Export MP4
+                    {getExportButtonLabel(primaryVibeExportFormat)}
                   </Button>
+                  {selectedVibeJob.contains_transparency && primaryVibeExportFormat !== 'mov' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExportVibeVideo(selectedVibeJob.job_id, 'mov')}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export MOV
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

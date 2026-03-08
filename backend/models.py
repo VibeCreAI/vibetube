@@ -91,6 +91,9 @@ class VibeTubeRenderResponse(BaseModel):
     duration: float
     source_generation_id: Optional[str] = None
     source_story_id: Optional[str] = None
+    contains_transparency: Optional[bool] = None
+    alpha_verified: Optional[bool] = None
+    preferred_export_format: Optional[str] = None
 
 
 class VibeTubeAvatarPackResponse(BaseModel):
@@ -144,6 +147,9 @@ class VibeTubeJobResponse(BaseModel):
     source_story_name: Optional[str] = None
     source_profile_name: Optional[str] = None
     source_text_preview: Optional[str] = None
+    contains_transparency: Optional[bool] = None
+    alpha_verified: Optional[bool] = None
+    preferred_export_format: Optional[str] = None
 
 
 class StoryVibeTubeRenderRequest(BaseModel):

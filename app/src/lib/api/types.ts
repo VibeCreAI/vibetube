@@ -359,6 +359,8 @@ export interface VibeTubeAvatarGenerateRequest {
   reference_strength?: number;
 }
 
+export type VibeTubeExportFormat = 'webm' | 'mp4' | 'mov';
+
 export interface VibeTubeRenderResponse {
   job_id: string;
   output_dir: string;
@@ -369,6 +371,9 @@ export interface VibeTubeRenderResponse {
   duration: number;
   source_generation_id?: string;
   source_story_id?: string;
+  contains_transparency?: boolean;
+  alpha_verified?: boolean;
+  preferred_export_format?: VibeTubeExportFormat;
 }
 
 export interface VibeTubeJobResponse {
@@ -381,4 +386,7 @@ export interface VibeTubeJobResponse {
   source_story_name?: string;
   source_profile_name?: string;
   source_text_preview?: string;
+  contains_transparency?: boolean;
+  alpha_verified?: boolean;
+  preferred_export_format?: VibeTubeExportFormat;
 }
