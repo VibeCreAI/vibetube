@@ -20,6 +20,7 @@ from .models import (
     StoryItemMove,
     StoryItemTrim,
     StoryItemSplit,
+    StoryItemRegenerateRequest,
     StoryBatchCreateRequest,
     StoryBatchCreateResponse,
     StoryBatchEntryResult,
@@ -728,6 +729,115 @@ async def duplicate_story_item(
         seed=generation.seed,
         instruct=generation.instruct,
         generation_created_at=generation.created_at,
+    )
+
+
+async def regenerate_story_item(
+    story_id: str,
+    item_id: str,
+    data: StoryItemRegenerateRequest,
+    db: Session,
+    generate_func: Callable[[GenerationRequest, Session], Awaitable[GenerationResponse]],
+) -> Optional[StoryItemDetail]:
+    """
+    Regenerate the underlying audio for a story item while keeping the item's placement.
+
+    Args:
+        story_id: Story ID
+        item_id: Story item ID to regenerate
+        db: Database session
+        generate_func: Speech generation callback
+
+    Returns:
+        Updated item detail or None if not found
+    """
+    item = db.query(DBStoryItem).filter_by(
+        id=item_id,
+        story_id=story_id,
+    ).first()
+    if not item:
+        return None
+
+    previous_generation = db.query(DBGeneration).filter_by(id=item.generation_id).first()
+    if not previous_generation:
+        return None
+
+    previous_trim_start_ms = getattr(item, 'trim_start_ms', 0)
+    previous_trim_end_ms = getattr(item, 'trim_end_ms', 0)
+    previous_effective_duration_ms = max(
+        0,
+        int(previous_generation.duration * 1000) - previous_trim_start_ms - previous_trim_end_ms,
+    )
+
+    regenerated = await generate_func(
+        GenerationRequest(
+            profile_id=data.profile_id,
+            text=data.text,
+            language=data.language,
+            seed=data.seed,
+            model_size=data.model_size,
+            instruct=data.instruct,
+        ),
+        db,
+    )
+
+    max_duration_ms = int(regenerated.duration * 1000)
+    trim_start_ms = getattr(item, 'trim_start_ms', 0)
+    trim_end_ms = getattr(item, 'trim_end_ms', 0)
+    if trim_start_ms + trim_end_ms >= max_duration_ms:
+        item.trim_start_ms = 0
+        item.trim_end_ms = 0
+        trim_start_ms = 0
+        trim_end_ms = 0
+
+    new_effective_duration_ms = max(0, max_duration_ms - trim_start_ms - trim_end_ms)
+    duration_delta_ms = new_effective_duration_ms - previous_effective_duration_ms
+
+    item.generation_id = regenerated.id
+
+    if duration_delta_ms != 0:
+        subsequent_items = (
+            db.query(DBStoryItem)
+            .filter(
+                DBStoryItem.story_id == story_id,
+                DBStoryItem.id != item.id,
+                DBStoryItem.start_time_ms > item.start_time_ms,
+            )
+            .all()
+        )
+        for subsequent_item in subsequent_items:
+            subsequent_item.start_time_ms = max(
+                0,
+                subsequent_item.start_time_ms + duration_delta_ms,
+            )
+
+    story = db.query(DBStory).filter_by(id=story_id).first()
+    if story:
+        story.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(item)
+
+    profile = db.query(DBVoiceProfile).filter_by(id=regenerated.profile_id).first()
+
+    return StoryItemDetail(
+        id=item.id,
+        story_id=item.story_id,
+        generation_id=item.generation_id,
+        start_time_ms=item.start_time_ms,
+        track=item.track,
+        trim_start_ms=getattr(item, 'trim_start_ms', 0),
+        trim_end_ms=getattr(item, 'trim_end_ms', 0),
+        created_at=item.created_at,
+        profile_id=regenerated.profile_id,
+        profile_name=profile.name if profile else "Unknown",
+        text=regenerated.text,
+        language=regenerated.language,
+        audio_path=regenerated.audio_path,
+        duration=regenerated.duration,
+        seed=regenerated.seed,
+        instruct=regenerated.instruct,
+        generation_created_at=regenerated.created_at,
     )
 
 

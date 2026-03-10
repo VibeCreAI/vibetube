@@ -2384,6 +2384,26 @@ async def add_story_item(
     return item
 
 
+@app.post("/stories/{story_id}/items/{item_id}/regenerate", response_model=models.StoryItemDetail)
+async def regenerate_story_item(
+    story_id: str,
+    item_id: str,
+    data: models.StoryItemRegenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """Regenerate a story item and keep its placement in the story."""
+    item = await stories.regenerate_story_item(
+        story_id,
+        item_id,
+        data,
+        db,
+        generate_and_persist_speech,
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Story item not found")
+    return item
+
+
 @app.delete("/stories/{story_id}/items/{item_id}")
 async def remove_story_item(
     story_id: str,

@@ -20,6 +20,7 @@ import type {
   StoryItemCreate,
   StoryItemDetail,
   StoryItemMove,
+  StoryItemRegenerateRequest,
   StoryItemReorder,
   StoryItemSplit,
   StoryItemTrim,
@@ -517,6 +518,17 @@ class ApiClient {
   async removeStoryItem(storyId: string, itemId: string): Promise<void> {
     await this.request<void>(`/stories/${storyId}/items/${itemId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async regenerateStoryItem(
+    storyId: string,
+    itemId: string,
+    data: StoryItemRegenerateRequest,
+  ): Promise<StoryItemDetail> {
+    return this.request<StoryItemDetail>(`/stories/${storyId}/items/${itemId}/regenerate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

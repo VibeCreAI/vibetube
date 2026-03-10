@@ -7,6 +7,7 @@ import type {
   StoryItemBatchUpdate,
   StoryItemCreate,
   StoryItemMove,
+  StoryItemRegenerateRequest,
   StoryItemReorder,
   StoryItemSplit,
   StoryItemTrim,
@@ -116,6 +117,27 @@ export function useRemoveStoryItem() {
     mutationFn: ({ storyId, itemId }: { storyId: string; itemId: string }) =>
       apiClient.removeStoryItem(storyId, itemId),
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['stories'] });
+      queryClient.invalidateQueries({ queryKey: ['stories', variables.storyId] });
+    },
+  });
+}
+
+export function useRegenerateStoryItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      storyId,
+      itemId,
+      data,
+    }: {
+      storyId: string;
+      itemId: string;
+      data: StoryItemRegenerateRequest;
+    }) => apiClient.regenerateStoryItem(storyId, itemId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['history'] });
       queryClient.invalidateQueries({ queryKey: ['stories'] });
       queryClient.invalidateQueries({ queryKey: ['stories', variables.storyId] });
     },

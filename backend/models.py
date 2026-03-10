@@ -424,6 +424,16 @@ class StoryItemSplit(BaseModel):
     split_time_ms: int = Field(..., ge=0)  # Time within the clip to split at (relative to clip start)
 
 
+class StoryItemRegenerateRequest(BaseModel):
+    """Request model for regenerating/replacing a story item's generation."""
+    profile_id: str
+    text: str = Field(..., min_length=1, max_length=5000)
+    language: str = Field(default="en", pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it)$")
+    seed: Optional[int] = Field(None, ge=0)
+    model_size: Optional[str] = Field(default="1.7B", pattern="^(1\\.7B|0\\.6B)$")
+    instruct: Optional[str] = Field(None, max_length=500)
+
+
 class StoryBatchEntry(BaseModel):
     """One sequential line item in a bulk story generation request."""
 

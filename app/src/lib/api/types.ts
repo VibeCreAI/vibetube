@@ -215,6 +215,15 @@ export interface StoryItemSplit {
   split_time_ms: number;
 }
 
+export interface StoryItemRegenerateRequest {
+  profile_id: string;
+  text: string;
+  language: LanguageCode;
+  seed?: number;
+  model_size?: '1.7B' | '0.6B';
+  instruct?: string;
+}
+
 export interface StoryVibeTubeRenderRequest {
   fps?: number;
   resolution_preset?: string;

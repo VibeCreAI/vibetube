@@ -11,6 +11,13 @@ interface ActiveSource {
   endTimeMs: number;
 }
 
+function getEffectiveDurationMs(item: StoryItemDetail, buffer?: AudioBuffer): number {
+  const trimStartMs = item.trim_start_ms || 0;
+  const trimEndMs = item.trim_end_ms || 0;
+  const durationMs = (buffer?.duration ?? item.duration) * 1000;
+  return Math.max(0, durationMs - trimStartMs - trimEndMs);
+}
+
 /**
  * Hook for managing timecode-based story playback using Web Audio API.
  * Supports multiple simultaneous audio sources for overlapping clips on different tracks.
@@ -151,11 +158,9 @@ export function useStoryPlayback(items: StoryItemDetail[] | undefined) {
   const findActiveItems = useCallback(
     (storyTimeMs: number, itemList: StoryItemDetail[]): StoryItemDetail[] => {
       return itemList.filter((item) => {
+        const buffer = audioBuffersRef.current.get(item.generation_id);
         const itemStart = item.start_time_ms;
-        // Use effective duration (accounting for trims)
-        const trimStartMs = item.trim_start_ms || 0;
-        const trimEndMs = item.trim_end_ms || 0;
-        const effectiveDurationMs = item.duration * 1000 - trimStartMs - trimEndMs;
+        const effectiveDurationMs = getEffectiveDurationMs(item, buffer);
         const itemEnd = item.start_time_ms + effectiveDurationMs;
         return storyTimeMs >= itemStart && storyTimeMs < itemEnd;
       });
@@ -224,18 +229,21 @@ export function useStoryPlayback(items: StoryItemDetail[] | undefined) {
 
           // Calculate when this item should start in AudioContext time
           const itemStartContextTime = storyTimeToContextTime(item.start_time_ms);
-          
+
           // Calculate effective duration and trim offsets
           const trimStartSec = (item.trim_start_ms || 0) / 1000;
-          const trimEndSec = (item.trim_end_ms || 0) / 1000;
-          const effectiveDuration = item.duration - trimStartSec - trimEndSec;
+          const effectiveDuration = getEffectiveDurationMs(item, buffer) / 1000;
           const itemEndStoryTime = item.start_time_ms + effectiveDuration * 1000;
 
           // Calculate offset into the buffer (if seeking mid-way)
           // Offset is relative to the trimmed start of the clip
           const offsetIntoEffectiveClip = Math.max(0, (storyTimeMs - item.start_time_ms) / 1000);
           const offsetIntoBuffer = trimStartSec + offsetIntoEffectiveClip;
-          const duration = effectiveDuration - offsetIntoEffectiveClip;
+          const duration = Math.max(0, effectiveDuration - offsetIntoEffectiveClip);
+
+          if (duration <= 0) {
+            continue;
+          }
 
           // If the item should have already started, schedule it to start immediately
           const startAtContextTime = Math.max(currentContextTime, itemStartContextTime);

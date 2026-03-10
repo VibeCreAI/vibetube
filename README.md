@@ -10,18 +10,6 @@ Local-first voice cloning, character creation, story assembly, and talking-chara
 
 VibeTube is a local-first app for building voice-driven character content with a React frontend and a FastAPI backend. In development it runs as a web app against a local server; in packaged use it runs as a Tauri desktop app with a bundled backend. The current product centers on Characters, Generate, Stories, and VibeTube rendering, with support for local runtime by default and configurable server connections where needed.
 
-<p align="center">
-  <img src="landing/public/assets/app-screenshot-1.webp" alt="VibeTube screenshot" width="800" />
-</p>
-
-<p align="center">
-  <img src="landing/public/assets/app-screenshot-2.webp" alt="VibeTube stories view" width="800" />
-</p>
-
-<p align="center">
-  <img src="landing/public/assets/app-screenshot-3.webp" alt="VibeTube characters view" width="800" />
-</p>
-
 ## What VibeTube Includes
 
 ### Characters
@@ -125,7 +113,6 @@ VibeTube/
 |-- web/         # Web wrapper/runtime
 |-- tauri/       # Desktop wrapper/runtime
 |-- backend/     # FastAPI backend and model orchestration
-|-- landing/     # Marketing site
 |-- docs/        # Documentation site content
 |-- scripts/     # Build and maintenance scripts
 `-- legacy_cli/  # Archived legacy CLI work

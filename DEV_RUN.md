@@ -20,6 +20,7 @@ curl http://127.0.0.1:17493/health
 ```powershell
 cd C:\Users\samso\OneDrive\Desktop\Vibe\Web\VibeTube
 bun run dev:web -- --host 127.0.0.1
+bun run dev
 ```
 
 Open in browser:

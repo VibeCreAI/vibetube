@@ -16,7 +16,6 @@ VibeTube is a multi-part project:
 - `web/` web runtime
 - `tauri/` desktop runtime
 - `backend/` FastAPI backend and model orchestration
-- `landing/` marketing site
 - `docs/` documentation site
 - `scripts/` build and maintenance scripts
 

@@ -21,11 +21,17 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api/client';
-import type { VibeTubeExportFormat, VibeTubeJobResponse } from '@/lib/api/types';
+import type {
+  StoryItemRegenerateRequest,
+  VibeTubeExportFormat,
+  VibeTubeJobResponse,
+} from '@/lib/api/types';
 import { useHistory } from '@/lib/hooks/useHistory';
+import { useProfiles } from '@/lib/hooks/useProfiles';
 import {
   useAddStoryItem,
   useExportStoryAudio,
+  useRegenerateStoryItem,
   useRemoveStoryItem,
   useRenderStoryVibeTube,
   useReorderStoryItems,
@@ -38,6 +44,7 @@ import {
 } from '@/lib/utils/vibetubeSettings';
 import { useStoryStore } from '@/stores/storyStore';
 import { SortableStoryChatItem } from './StoryChatItem';
+import { StoryRegenerateDialog } from './StoryRegenerateDialog';
 
 function getPrimaryStoryExportFormat(job: VibeTubeJobResponse | null): VibeTubeExportFormat {
   if (!job) {
@@ -62,7 +69,9 @@ export function StoryContent() {
   const queryClient = useQueryClient();
   const selectedStoryId = useStoryStore((state) => state.selectedStoryId);
   const { data: story, isLoading } = useStory(selectedStoryId);
+  const { data: profiles } = useProfiles();
   const removeItem = useRemoveStoryItem();
+  const regenerateItem = useRegenerateStoryItem();
   const reorderItems = useReorderStoryItems();
   const exportAudio = useExportStoryAudio();
   const renderStoryVibeTube = useRenderStoryVibeTube();
@@ -71,6 +80,8 @@ export function StoryContent() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedStoryJobId, setSelectedStoryJobId] = useState<string | null>(null);
   const [isDeletingStoryRender, setIsDeletingStoryRender] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [regenerateStatusMessage, setRegenerateStatusMessage] = useState('');
 
   // Add generation popover state
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,6 +154,8 @@ export function StoryContent() {
   const isPlaying = useStoryStore((state) => state.isPlaying);
   const currentTimeMs = useStoryStore((state) => state.currentTimeMs);
   const playbackStoryId = useStoryStore((state) => state.playbackStoryId);
+  const play = useStoryStore((state) => state.play);
+  const seek = useStoryStore((state) => state.seek);
 
   // Refs for auto-scrolling to playing item
   const itemRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -164,7 +177,9 @@ export function StoryContent() {
     }
     const playingItem = sortedItems.find((item) => {
       const itemStart = item.start_time_ms;
-      const itemEnd = item.start_time_ms + item.duration * 1000;
+      const itemEnd =
+        item.start_time_ms +
+        Math.max(0, item.duration * 1000 - (item.trim_start_ms || 0) - (item.trim_end_ms || 0));
       return currentTimeMs >= itemStart && currentTimeMs < itemEnd;
     });
     return playingItem?.generation_id ?? null;
@@ -202,6 +217,56 @@ export function StoryContent() {
         onError: (error) => {
           toast({
             title: 'Failed to remove item',
+            description: error.message,
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  };
+
+  const handleRegenerateItem = (itemId: string) => {
+    setEditingItemId(itemId);
+  };
+
+  const handleRegenerateSubmit = (data: StoryItemRegenerateRequest) => {
+    if (!story || !editingItemId) return;
+
+    setRegenerateStatusMessage('Checking model...');
+    regenerateItem.mutate(
+      {
+        storyId: story.id,
+        itemId: editingItemId,
+        data,
+      },
+      {
+        onMutate: async (variables) => {
+          setRegenerateStatusMessage('Checking model...');
+          try {
+            const modelName = `qwen-tts-${variables.data.model_size || '1.7B'}`;
+            const modelStatus = await apiClient.getModelStatus();
+            const model = modelStatus.models.find((entry) => entry.model_name === modelName);
+            if (model && !model.downloaded) {
+              setRegenerateStatusMessage(`Downloading ${modelName}...`);
+            } else {
+              setRegenerateStatusMessage('Generating audio...');
+            }
+          } catch {
+            setRegenerateStatusMessage('Generating audio...');
+          }
+        },
+        onSuccess: () => {
+          setEditingItemId(null);
+          setRegenerateStatusMessage('');
+          toast({
+            title: 'Clip regenerated',
+            description: 'The story item was replaced in place.',
+          });
+        },
+        onError: (error) => {
+          setRegenerateStatusMessage('');
+          toast({
+            title: 'Failed to regenerate clip',
             description: error.message,
             variant: 'destructive',
           });
@@ -284,6 +349,13 @@ export function StoryContent() {
         },
       },
     );
+  };
+
+  const handlePlayFromItem = (itemStartMs: number) => {
+    if (!story) return;
+
+    seek(itemStartMs);
+    play(story.id, sortedItems);
   };
 
   const handleRenderStoryVibeTube = async () => {
@@ -423,216 +495,242 @@ export function StoryContent() {
     );
   }
 
+  const editingItem = story.items.find((item) => item.id === editingItemId) || null;
+
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Header */}
-      <div className="mb-4 px-1 space-y-3">
-        <div>
-          <h2 className="text-2xl font-bold">{story.name}</h2>
-          {story.description && (
-            <p className="text-sm text-muted-foreground mt-1">{story.description}</p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Add
+    <>
+      <div className="flex flex-col h-full min-h-0">
+        {/* Header */}
+        <div className="mb-4 px-1 space-y-3">
+          <div>
+            <h2 className="text-2xl font-bold">{story.name}</h2>
+            {story.description && (
+              <p className="text-sm text-muted-foreground mt-1">{story.description}</p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-2 border-b">
+                  <Input
+                    placeholder="Search by name or transcript..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {availableGenerations.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      {searchQuery ? 'No matching generations found' : 'No available generations'}
+                    </div>
+                  ) : (
+                    availableGenerations.map((gen) => (
+                      <button
+                        key={gen.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-muted transition-colors border-b last:border-b-0"
+                        onClick={() => handleAddGeneration(gen.id)}
+                      >
+                        <div className="font-medium text-sm">{gen.profile_name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {gen.text.length > 50 ? `${gen.text.substring(0, 50)}...` : gen.text}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {story.items.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRenderStoryVibeTube}
+                disabled={renderStoryVibeTube.isPending}
+              >
+                <Clapperboard className="mr-2 h-4 w-4" />
+                {renderStoryVibeTube.isPending ? 'Rendering...' : 'Render VibeTube'}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="end">
-              <div className="p-2 border-b">
-                <Input
-                  placeholder="Search by name or transcript..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
-                />
+            )}
+            {story.items.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportAudio}
+                disabled={exportAudio.isPending}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export Audio
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 overflow-y-auto space-y-3"
+          style={{ paddingBottom: bottomPadding > 0 ? `${bottomPadding}px` : undefined }}
+        >
+          <section className="rounded-xl border bg-card/40 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-base font-semibold">Story Video Preview</h3>
+                <p className="text-xs text-muted-foreground">
+                  Only renders generated from this story are shown here.
+                </p>
               </div>
-              <div className="max-h-60 overflow-y-auto">
-                {availableGenerations.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    {searchQuery ? 'No matching generations found' : 'No available generations'}
-                  </div>
-                ) : (
-                  availableGenerations.map((gen) => (
-                    <button
-                      key={gen.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-muted transition-colors border-b last:border-b-0"
-                      onClick={() => handleAddGeneration(gen.id)}
-                    >
-                      <div className="font-medium text-sm">{gen.profile_name}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {gen.text.length > 50 ? `${gen.text.substring(0, 50)}...` : gen.text}
-                      </div>
-                    </button>
-                  ))
+              <div className="flex items-center gap-2">
+                {selectedStoryJob && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handleExportStoryRenderVideo(
+                        selectedStoryJob.job_id,
+                        primaryStoryExportFormat,
+                      )
+                    }
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {getStoryExportButtonLabel(primaryStoryExportFormat)}
+                  </Button>
+                )}
+                {selectedStoryJob?.contains_transparency && primaryStoryExportFormat !== 'mov' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportStoryRenderVideo(selectedStoryJob.job_id, 'mov')}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export MOV
+                  </Button>
+                )}
+                {selectedStoryJob && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportStoryRenderSubtitles(selectedStoryJob.job_id)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export SRT
+                  </Button>
+                )}
+                {selectedStoryJob && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteStoryRender(selectedStoryJob.job_id)}
+                    disabled={isDeletingStoryRender}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isDeletingStoryRender ? 'Deleting...' : 'Delete'}
+                  </Button>
                 )}
               </div>
-            </PopoverContent>
-          </Popover>
-          {story.items.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRenderStoryVibeTube}
-              disabled={renderStoryVibeTube.isPending}
+            </div>
+
+            {selectedStoryJob ? (
+              <div className="space-y-3">
+                <video
+                  className="w-full rounded-lg border bg-black/60 max-h-[360px]"
+                  controls
+                  preload="metadata"
+                  src={apiClient.getVibeTubePreviewUrl(selectedStoryJob.job_id)}
+                >
+                  <track kind="captions" />
+                </video>
+                {storyJobs.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {storyJobs.map((job) => (
+                      <Button
+                        key={job.job_id}
+                        variant={job.job_id === selectedStoryJob.job_id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedStoryJobId(job.job_id)}
+                      >
+                        {new Date(job.created_at).toLocaleString()}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                No story render yet. Click "Render VibeTube" above.
+              </div>
+            )}
+          </section>
+
+          {sortedItems.length === 0 ? (
+            <div className="text-center py-12 px-5 border-2 border-dashed border-muted rounded-md text-muted-foreground">
+              <p className="text-sm">No items in this story</p>
+              <p className="text-xs mt-2">Generate speech using the box below to add items</p>
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              <Clapperboard className="mr-2 h-4 w-4" />
-              {renderStoryVibeTube.isPending ? 'Rendering...' : 'Render VibeTube'}
-            </Button>
-          )}
-          {story.items.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportAudio}
-              disabled={exportAudio.isPending}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export Audio
-            </Button>
+              <SortableContext
+                items={sortedItems.map((item) => item.generation_id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-3">
+                  {sortedItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      ref={(el) => {
+                        if (el) {
+                          itemRefsMap.current.set(item.generation_id, el);
+                        } else {
+                          itemRefsMap.current.delete(item.generation_id);
+                        }
+                      }}
+                    >
+                      <SortableStoryChatItem
+                        item={item}
+                        storyId={story.id}
+                        index={index}
+                        onPlayFromHere={() => handlePlayFromItem(item.start_time_ms)}
+                        onRemove={() => handleRemoveItem(item.id)}
+                        onRegenerate={() => handleRegenerateItem(item.id)}
+                        isRegenerating={
+                          regenerateItem.isPending && regenerateItem.variables?.itemId === item.id
+                        }
+                        currentTimeMs={currentTimeMs}
+                        isPlaying={isPlaying && playbackStoryId === story.id}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
-
-      {/* Content */}
-      <div
-        ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto space-y-3"
-        style={{ paddingBottom: bottomPadding > 0 ? `${bottomPadding}px` : undefined }}
-      >
-        <section className="rounded-xl border bg-card/40 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-base font-semibold">Story Video Preview</h3>
-              <p className="text-xs text-muted-foreground">
-                Only renders generated from this story are shown here.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {selectedStoryJob && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    handleExportStoryRenderVideo(selectedStoryJob.job_id, primaryStoryExportFormat)
-                  }
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {getStoryExportButtonLabel(primaryStoryExportFormat)}
-                </Button>
-              )}
-              {selectedStoryJob?.contains_transparency && primaryStoryExportFormat !== 'mov' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleExportStoryRenderVideo(selectedStoryJob.job_id, 'mov')}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export MOV
-                </Button>
-              )}
-              {selectedStoryJob && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleExportStoryRenderSubtitles(selectedStoryJob.job_id)}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export SRT
-                </Button>
-              )}
-              {selectedStoryJob && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDeleteStoryRender(selectedStoryJob.job_id)}
-                  disabled={isDeletingStoryRender}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {isDeletingStoryRender ? 'Deleting...' : 'Delete'}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {selectedStoryJob ? (
-            <div className="space-y-3">
-              <video
-                className="w-full rounded-lg border bg-black/60 max-h-[360px]"
-                controls
-                preload="metadata"
-                src={apiClient.getVibeTubePreviewUrl(selectedStoryJob.job_id)}
-              >
-                <track kind="captions" />
-              </video>
-              {storyJobs.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {storyJobs.map((job) => (
-                    <Button
-                      key={job.job_id}
-                      variant={job.job_id === selectedStoryJob.job_id ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedStoryJobId(job.job_id)}
-                    >
-                      {new Date(job.created_at).toLocaleString()}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              No story render yet. Click "Render VibeTube" above.
-            </div>
-          )}
-        </section>
-
-        {sortedItems.length === 0 ? (
-          <div className="text-center py-12 px-5 border-2 border-dashed border-muted rounded-md text-muted-foreground">
-            <p className="text-sm">No items in this story</p>
-            <p className="text-xs mt-2">Generate speech using the box below to add items</p>
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={sortedItems.map((item) => item.generation_id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-3">
-                {sortedItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    ref={(el) => {
-                      if (el) {
-                        itemRefsMap.current.set(item.generation_id, el);
-                      } else {
-                        itemRefsMap.current.delete(item.generation_id);
-                      }
-                    }}
-                  >
-                    <SortableStoryChatItem
-                      item={item}
-                      storyId={story.id}
-                      index={index}
-                      onRemove={() => handleRemoveItem(item.id)}
-                      currentTimeMs={currentTimeMs}
-                      isPlaying={isPlaying && playbackStoryId === story.id}
-                    />
-                  </div>
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </div>
-    </div>
+      <StoryRegenerateDialog
+        open={!!editingItem}
+        item={editingItem}
+        profiles={profiles || []}
+        isSubmitting={regenerateItem.isPending}
+        statusMessage={regenerateStatusMessage}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingItemId(null);
+            setRegenerateStatusMessage('');
+          }
+        }}
+        onSubmit={handleRegenerateSubmit}
+      />
+    </>
   );
 }

@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import type { StoryItemDetail } from '@/lib/api/types';
 
+function getEffectiveDurationMs(item: StoryItemDetail): number {
+  return Math.max(0, item.duration * 1000 - (item.trim_start_ms || 0) - (item.trim_end_ms || 0));
+}
+
 interface StoryPlaybackState {
   // Selection
   selectedStoryId: string | null;
@@ -57,7 +61,7 @@ export const useStoryStore = create<StoryPlaybackState>((set, get) => ({
   play: (storyId, items) => {
     // Calculate total duration from items
     const maxEndTimeMs = Math.max(
-      ...items.map((item) => item.start_time_ms + item.duration * 1000),
+      ...items.map((item) => item.start_time_ms + getEffectiveDurationMs(item)),
       0,
     );
 

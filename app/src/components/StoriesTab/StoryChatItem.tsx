@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Mic, MoreHorizontal, Play, Trash2 } from 'lucide-react';
+import { GripVertical, Mic, MoreHorizontal, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,29 +12,33 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { StoryItemDetail } from '@/lib/api/types';
 import { cn } from '@/lib/utils/cn';
-import { useStoryStore } from '@/stores/storyStore';
 import { useServerStore } from '@/stores/serverStore';
 
 interface StoryChatItemProps {
   item: StoryItemDetail;
   storyId: string;
   index: number;
+  onPlayFromHere: () => void;
   onRemove: () => void;
+  onRegenerate: () => void;
   currentTimeMs: number;
   isPlaying: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   isDragging?: boolean;
+  isRegenerating?: boolean;
 }
 
 export function StoryChatItem({
   item,
+  onPlayFromHere,
   onRemove,
+  onRegenerate,
   currentTimeMs,
   isPlaying,
   dragHandleProps,
   isDragging,
+  isRegenerating,
 }: StoryChatItemProps) {
-  const seek = useStoryStore((state) => state.seek);
   const serverUrl = useServerStore((state) => state.serverUrl);
   const [avatarError, setAvatarError] = useState(false);
 
@@ -42,12 +46,13 @@ export function StoryChatItem({
 
   // Check if this item is currently playing based on timecode
   const itemStartMs = item.start_time_ms;
-  const itemEndMs = item.start_time_ms + item.duration * 1000;
+  const itemEndMs =
+    item.start_time_ms +
+    Math.max(0, item.duration * 1000 - (item.trim_start_ms || 0) - (item.trim_end_ms || 0));
   const isCurrentlyPlaying = isPlaying && currentTimeMs >= itemStartMs && currentTimeMs < itemEndMs;
 
   const handlePlay = () => {
-    // Seek to the start of this item
-    seek(itemStartMs);
+    onPlayFromHere();
   };
 
   const formatTime = (ms: number): string => {
@@ -87,7 +92,7 @@ export function StoryChatItem({
               alt={`${item.profile_name} avatar`}
               className={cn(
                 'h-full w-full object-cover transition-all duration-200',
-                !isCurrentlyPlaying && 'grayscale'
+                !isCurrentlyPlaying && 'grayscale',
               )}
               onError={() => setAvatarError(true)}
             />
@@ -127,7 +132,14 @@ export function StoryChatItem({
               <Play className="mr-2 h-4 w-4" />
               Play from here
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onRemove} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem onClick={onRegenerate} disabled={isRegenerating}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onRemove}
+              className="text-destructive focus:text-destructive"
+            >
               <Trash2 className="mr-2 h-4 w-4" />
               Remove from Story
             </DropdownMenuItem>
@@ -139,15 +151,12 @@ export function StoryChatItem({
 }
 
 // Sortable wrapper component
-export function SortableStoryChatItem(props: Omit<StoryChatItemProps, 'dragHandleProps' | 'isDragging'>) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: props.item.generation_id });
+export function SortableStoryChatItem(
+  props: Omit<StoryChatItemProps, 'dragHandleProps' | 'isDragging'>,
+) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.item.generation_id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -156,11 +165,7 @@ export function SortableStoryChatItem(props: Omit<StoryChatItemProps, 'dragHandl
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <StoryChatItem
-        {...props}
-        dragHandleProps={listeners}
-        isDragging={isDragging}
-      />
+      <StoryChatItem {...props} dragHandleProps={listeners} isDragging={isDragging} />
     </div>
   );
 }
