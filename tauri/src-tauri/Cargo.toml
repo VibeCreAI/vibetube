@@ -1,6 +1,6 @@
 [package]
 name = "vibetube"
-version = "0.1.18"
+version = "0.1.19"
 description = "A production-quality desktop app for Qwen3-TTS voice cloning and generation"
 authors = ["you"]
 license = ""
