@@ -136,10 +136,7 @@ jobs:
             See the assets below to download and install this version.
 
             ### Installation
-            - **macOS (Apple Silicon)**: Download the `aarch64.dmg` file - uses MLX for fast native inference
-            - **macOS (Intel)**: Download the `x64.dmg` file - uses PyTorch
-            - **Windows**: Download the `.msi` installer
-            - **Linux**: Download the `.AppImage` or `.deb` package
+            - **Windows**: Download the `.msi` installer or `x64-setup.exe`
 
             The app includes automatic updates - future updates will be installed automatically.
           releaseDraft: true
