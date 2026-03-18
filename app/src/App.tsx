@@ -1,6 +1,7 @@
 ﻿import { RouterProvider } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import vibetubeLogo from '@/assets/vibetube-logo.png';
+import { BroadcastOutputShell } from '@/components/BroadcastTab/BroadcastOutputShell';
 import ShinyText from '@/components/ShinyText';
 import { TitleBarDragRegion } from '@/components/TitleBarDragRegion';
 import { useAutoUpdater } from '@/hooks/useAutoUpdater';
@@ -35,6 +36,9 @@ const LOADING_MESSAGES = [
 
 function App() {
   const platform = usePlatform();
+  const isBroadcastOutput =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('broadcastOutput') === '1';
   const [serverReady, setServerReady] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const serverStartingRef = useRef(false);
@@ -169,6 +173,10 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  if (isBroadcastOutput) {
+    return <BroadcastOutputShell />;
   }
 
   return <RouterProvider router={router} />;

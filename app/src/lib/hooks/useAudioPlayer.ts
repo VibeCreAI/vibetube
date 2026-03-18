@@ -1,62 +1,107 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
 export function useAudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
+  const fileKeyRef = useRef<string | null>(null);
+  const tearingDownRef = useRef(false);
   const { toast } = useToast();
 
-  const playPause = (file: File | null | undefined) => {
-    if (!file) return;
+  const cleanup = useCallback(() => {
+    tearingDownRef.current = true;
 
     if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current.play();
-        setIsPlaying(true);
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
+
+    fileKeyRef.current = null;
+    setIsPlaying(false);
+
+    queueMicrotask(() => {
+      tearingDownRef.current = false;
+    });
+  }, []);
+
+  const playPause = useCallback(
+    async (file: File | null | undefined) => {
+      if (!file) return;
+
+      const nextFileKey = `${file.name}:${file.size}:${file.lastModified}`;
+      const isSameFile = fileKeyRef.current === nextFileKey;
+
+      if (audioRef.current && isSameFile) {
+        if (isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+          return;
+        }
+
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (error) {
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            toast({
+              title: 'Playback error',
+              description: 'Failed to play audio file',
+              variant: 'destructive',
+            });
+          }
+          setIsPlaying(false);
+        }
+        return;
       }
-    } else {
-      const audio = new Audio(URL.createObjectURL(file));
+
+      cleanup();
+
+      const objectUrl = URL.createObjectURL(file);
+      const audio = new Audio(objectUrl);
       audioRef.current = audio;
+      urlRef.current = objectUrl;
+      fileKeyRef.current = nextFileKey;
 
       audio.addEventListener('ended', () => {
-        setIsPlaying(false);
-        if (audioRef.current) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-        audioRef.current = null;
+        cleanup();
       });
 
       audio.addEventListener('error', () => {
-        setIsPlaying(false);
+        if (tearingDownRef.current) {
+          cleanup();
+          return;
+        }
+
         toast({
           title: 'Playback error',
           description: 'Failed to play audio file',
           variant: 'destructive',
         });
-        if (audioRef.current) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-        audioRef.current = null;
+        cleanup();
       });
 
-      audio.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const cleanup = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      if (audioRef.current.src.startsWith('blob:')) {
-        URL.revokeObjectURL(audioRef.current.src);
+      try {
+        await audio.play();
+        setIsPlaying(true);
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          toast({
+            title: 'Playback error',
+            description: 'Failed to play audio file',
+            variant: 'destructive',
+          });
+        }
+        cleanup();
       }
-      audioRef.current = null;
-    }
-    setIsPlaying(false);
-  };
+    },
+    [cleanup, isPlaying, toast],
+  );
 
   return {
     isPlaying,

@@ -769,17 +769,22 @@ async def regenerate_story_item(
         int(previous_generation.duration * 1000) - previous_trim_start_ms - previous_trim_end_ms,
     )
 
-    regenerated = await generate_func(
-        GenerationRequest(
-            profile_id=data.profile_id,
-            text=data.text,
-            language=data.language,
-            seed=data.seed,
-            model_size=data.model_size,
-            instruct=data.instruct,
-        ),
-        db,
-    )
+    if data.generation_id:
+        regenerated = db.query(DBGeneration).filter_by(id=data.generation_id).first()
+        if not regenerated:
+            return None
+    else:
+        regenerated = await generate_func(
+            GenerationRequest(
+                profile_id=data.profile_id,
+                text=(data.text or "").strip(),
+                language=data.language,
+                seed=data.seed,
+                model_size=data.model_size,
+                instruct=data.instruct,
+            ),
+            db,
+        )
 
     max_duration_ms = int(regenerated.duration * 1000)
     trim_start_ms = getattr(item, 'trim_start_ms', 0)

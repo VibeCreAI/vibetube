@@ -4,7 +4,11 @@ import { convertToWav } from '@/lib/utils/audio';
 
 interface UseAudioRecordingOptions {
   maxDurationSeconds?: number;
-  onRecordingComplete?: (blob: Blob, duration?: number) => void;
+  onRecordingComplete?: (
+    blob: Blob,
+    duration?: number,
+    meta?: { previewBlob: Blob; convertedToWav: boolean },
+  ) => void;
   audioProcessing?: AudioProcessingOptions;
 }
 
@@ -27,6 +31,7 @@ export function useAudioRecording({
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -80,6 +85,7 @@ export function useAudioRecording({
       });
 
       streamRef.current = stream;
+      setActiveStream(stream);
 
       // Create MediaRecorder with preferred MIME type
       const options: MediaRecorderOptions = {
@@ -109,25 +115,34 @@ export function useAudioRecording({
           ? (Date.now() - startTimeRef.current) / 1000
           : undefined;
 
-        const webmBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const recordedMimeType =
+          mediaRecorder.mimeType || chunksRef.current[0]?.type || 'audio/webm;codecs=opus';
+        const recordedBlob = new Blob(chunksRef.current, { type: recordedMimeType });
 
         // Stop all tracks now that we have the data
         streamRef.current?.getTracks().forEach((track) => {
           track.stop();
         });
         streamRef.current = null;
+        setActiveStream(null);
 
         // Don't fire completion callback if the recording was cancelled
         if (wasCancelled) return;
 
         // Convert to WAV format to avoid needing ffmpeg on backend
         try {
-          const wavBlob = await convertToWav(webmBlob);
-          onRecordingComplete?.(wavBlob, recordedDuration);
+          const wavBlob = await convertToWav(recordedBlob);
+          onRecordingComplete?.(wavBlob, recordedDuration, {
+            previewBlob: recordedBlob,
+            convertedToWav: true,
+          });
         } catch (err) {
           console.error('Error converting audio to WAV:', err);
           // Fallback to original blob if conversion fails
-          onRecordingComplete?.(webmBlob, recordedDuration);
+          onRecordingComplete?.(recordedBlob, recordedDuration, {
+            previewBlob: recordedBlob,
+            convertedToWav: false,
+          });
         }
       };
 
@@ -196,6 +211,7 @@ export function useAudioRecording({
       track.stop();
     });
     streamRef.current = null;
+    setActiveStream(null);
 
     if (timerRef.current !== null) {
       clearInterval(timerRef.current);
@@ -212,6 +228,7 @@ export function useAudioRecording({
       streamRef.current?.getTracks().forEach((track) => {
         track.stop();
       });
+      setActiveStream(null);
     };
   }, []);
 
@@ -219,6 +236,7 @@ export function useAudioRecording({
     isRecording,
     duration,
     error,
+    activeStream,
     startRecording,
     stopRecording,
     cancelRecording,

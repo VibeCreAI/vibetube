@@ -2,7 +2,7 @@
 Pydantic models for request/response validation.
 """
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -93,6 +93,8 @@ class VibeTubeRenderResponse(BaseModel):
     duration: float
     source_generation_id: Optional[str] = None
     source_story_id: Optional[str] = None
+    source_kind: Optional[str] = None
+    source_profile_id: Optional[str] = None
     contains_transparency: Optional[bool] = None
     alpha_verified: Optional[bool] = None
     preferred_export_format: Optional[str] = None
@@ -146,6 +148,8 @@ class VibeTubeJobResponse(BaseModel):
     video_path: Optional[str] = None
     source_generation_id: Optional[str] = None
     source_story_id: Optional[str] = None
+    source_kind: Optional[str] = None
+    source_profile_id: Optional[str] = None
     source_story_name: Optional[str] = None
     source_profile_name: Optional[str] = None
     source_text_preview: Optional[str] = None
@@ -428,12 +432,23 @@ class StoryItemSplit(BaseModel):
 
 class StoryItemRegenerateRequest(BaseModel):
     """Request model for regenerating/replacing a story item's generation."""
-    profile_id: str
-    text: str = Field(..., min_length=1, max_length=5000)
+    generation_id: Optional[str] = None
+    profile_id: Optional[str] = None
+    text: Optional[str] = Field(None, min_length=1, max_length=5000)
     language: str = Field(default="en", pattern="^(zh|en|ja|ko|de|fr|ru|pt|es|it)$")
     seed: Optional[int] = Field(None, ge=0)
     model_size: Optional[str] = Field(default="1.7B", pattern="^(1\\.7B|0\\.6B)$")
     instruct: Optional[str] = Field(None, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_story_regenerate_request(self):
+        if self.generation_id:
+            return self
+        if not self.profile_id:
+            raise ValueError("profile_id is required when generation_id is not provided")
+        if not self.text or not self.text.strip():
+            raise ValueError("text is required when generation_id is not provided")
+        return self
 
 
 class StoryBatchEntry(BaseModel):

@@ -152,6 +152,66 @@ async def generate_and_persist_speech(
         task_manager.complete_generation(generation_task_id)
         raise HTTPException(status_code=500, detail=str(e))
 
+
+async def create_generation_from_uploaded_audio(
+    profile_id: str,
+    file: UploadFile,
+    db: Session,
+    text: Optional[str] = None,
+    language: Optional[str] = None,
+    instruct: Optional[str] = None,
+) -> models.GenerationResponse:
+    """Persist uploaded audio as a normal generation history row."""
+    profile = await profiles.get_profile(profile_id, db)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    allowed_audio_exts = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".aac", ".webm", ".opus"}
+    uploaded_ext = Path(file.filename or "").suffix.lower()
+    file_suffix = uploaded_ext if uploaded_ext in allowed_audio_exts else ".wav"
+
+    with tempfile.NamedTemporaryFile(suffix=file_suffix, delete=False) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = Path(tmp.name)
+
+    destination_path: Optional[Path] = None
+    try:
+        from .utils.audio import load_audio
+
+        audio, sr = load_audio(str(tmp_path))
+        duration = len(audio) / sr
+
+        destination_path = config.get_generations_dir() / f"{uuid.uuid4()}{file_suffix}"
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(tmp_path, destination_path)
+
+        generation_text = (text or "").strip() or "Recorded voice clip"
+        generation_language = (language or profile.language or "en").strip() or "en"
+
+        return await history.create_generation(
+            profile_id=profile_id,
+            text=generation_text,
+            language=generation_language,
+            audio_path=str(destination_path),
+            duration=duration,
+            seed=None,
+            db=db,
+            instruct=(instruct or "").strip() or None,
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        if destination_path and destination_path.exists():
+            destination_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        if destination_path and destination_path.exists():
+            destination_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process audio file: {str(e)}")
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
 app = FastAPI(
     title="VibeTube API",
     description="Production-quality Qwen3-TTS voice cloning API",
@@ -1262,6 +1322,26 @@ async def generate_speech(
     return await generate_and_persist_speech(data, db)
 
 
+@app.post("/generations/import-audio", response_model=models.GenerationResponse)
+async def import_generation_audio(
+    profile_id: str = Form(...),
+    file: UploadFile = File(...),
+    text: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
+    instruct: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Create a generation entry from uploaded microphone audio."""
+    return await create_generation_from_uploaded_audio(
+        profile_id=profile_id,
+        file=file,
+        db=db,
+        text=text,
+        language=language,
+        instruct=instruct,
+    )
+
+
 @app.post("/generate/stream")
 async def stream_speech(
     data: models.GenerationRequest,
@@ -1489,6 +1569,7 @@ async def vibetube_render(
             meta = {}
         meta.update(
             {
+                "source_kind": "generation",
                 "source_generation_id": source_generation_id,
                 "source_profile_id": avatar_profile_id,
                 "source_profile_name": source_profile_name,
@@ -1506,6 +1587,8 @@ async def vibetube_render(
             meta_path=str(Path(render_result["meta_path"]).resolve()),
             duration=float(render_result["duration_sec"]),
             source_generation_id=source_generation_id,
+            source_kind="generation",
+            source_profile_id=avatar_profile_id,
             contains_transparency=bool(render_result.get("contains_transparency")),
             alpha_verified=bool(render_result.get("alpha_verified")),
             preferred_export_format=str(render_result.get("preferred_export_format") or "mp4"),
@@ -1516,6 +1599,168 @@ async def vibetube_render(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"VibeTube render failed: {str(e)}")
+
+
+@app.post("/vibetube/render-audio", response_model=models.VibeTubeRenderResponse)
+async def vibetube_render_audio(
+    profile_id: str = Form(...),
+    audio: UploadFile = File(...),
+    caption_text: Optional[str] = Form(None),
+    fps: int = Form(30),
+    width: int = Form(512),
+    height: int = Form(512),
+    on_threshold: float = Form(0.03),
+    off_threshold: float = Form(0.02),
+    smoothing_windows: int = Form(3),
+    min_hold_windows: int = Form(1),
+    blink_min_interval_sec: float = Form(3.5),
+    blink_max_interval_sec: float = Form(5.5),
+    blink_duration_frames: int = Form(3),
+    head_motion_amount_px: float = Form(3.0),
+    head_motion_change_sec: float = Form(2.8),
+    head_motion_smoothness: float = Form(0.04),
+    voice_bounce_amount_px: float = Form(4.0),
+    voice_bounce_sensitivity: float = Form(1.0),
+    use_background_color: bool = Form(False),
+    use_background_image: bool = Form(False),
+    use_background: bool = Form(False),
+    background_color: str = Form("#101820"),
+    subtitle_enabled: bool = Form(False),
+    subtitle_style: str = Form("minimal", pattern="^(minimal|cinema|glass)$"),
+    subtitle_text_color: str = Form("#FFFFFF", pattern="^#[0-9A-Fa-f]{6}$"),
+    subtitle_outline_color: str = Form("#000000", pattern="^#[0-9A-Fa-f]{6}$"),
+    subtitle_outline_width: int = Form(2, ge=0, le=12),
+    subtitle_font_family: str = Form("sans", pattern="^(sans|serif|mono)$"),
+    subtitle_bold: bool = Form(True),
+    subtitle_italic: bool = Form(False),
+    show_profile_names: bool = Form(True),
+    background_image: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    """Render a PNGtuber overlay video from uploaded microphone audio."""
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    pack_dir = _vibetube_avatar_pack_dir(profile_id)
+    required_states = ("idle.png", "talk.png", "idle_blink.png", "talk_blink.png")
+    if any(not (pack_dir / state).exists() for state in required_states):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'VibeTube avatar pack missing for profile "{profile.name}". '
+                "Broadcast mode requires a complete 4-state VibeTube avatar pack."
+            ),
+        )
+
+    if not audio.filename:
+        raise HTTPException(status_code=400, detail="Audio file is required")
+
+    try:
+        job_id = str(uuid.uuid4())
+        base_out = config.get_data_dir() / "vibetube" / job_id
+        avatar_dir = base_out / "avatar"
+        avatar_dir.mkdir(parents=True, exist_ok=True)
+
+        audio_path = base_out / "source.wav"
+        audio_path.write_bytes(await audio.read())
+
+        shutil.copy2(pack_dir / "idle.png", avatar_dir / "idle.png")
+        shutil.copy2(pack_dir / "talk.png", avatar_dir / "talk.png")
+        if (pack_dir / "idle_blink.png").exists():
+            shutil.copy2(pack_dir / "idle_blink.png", avatar_dir / "idle_blink.png")
+        if (pack_dir / "talk_blink.png").exists():
+            shutil.copy2(pack_dir / "talk_blink.png", avatar_dir / "talk_blink.png")
+        if (pack_dir / "blink.png").exists():
+            shutil.copy2(pack_dir / "blink.png", avatar_dir / "blink.png")
+
+        background_image_path: Optional[Path] = None
+        if use_background_image and background_image is not None:
+            suffix = Path(background_image.filename or "").suffix.lower()
+            if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+                suffix = ".png"
+            background_image_path = base_out / f"background{suffix}"
+            background_image_path.write_bytes(await background_image.read())
+
+        background_enabled = bool(
+            use_background
+            or use_background_color
+            or (use_background_image and background_image_path is not None)
+        )
+        normalized_caption_text = (caption_text or "").strip() or None
+
+        render_result = vibetube.render_overlay(
+            audio_path=audio_path,
+            avatar_dir=avatar_dir,
+            output_dir=base_out,
+            fps=fps,
+            width=width,
+            height=height,
+            on_threshold=on_threshold,
+            off_threshold=off_threshold,
+            smoothing_windows=smoothing_windows,
+            min_hold_windows=min_hold_windows,
+            blink_min_interval_sec=blink_min_interval_sec,
+            blink_max_interval_sec=blink_max_interval_sec,
+            blink_duration_frames=blink_duration_frames,
+            head_motion_amount_px=head_motion_amount_px,
+            head_motion_change_sec=head_motion_change_sec,
+            head_motion_smoothness=head_motion_smoothness,
+            voice_bounce_amount_px=voice_bounce_amount_px,
+            voice_bounce_sensitivity=voice_bounce_sensitivity,
+            use_background=background_enabled,
+            background_color=background_color if use_background_color else None,
+            background_image_path=background_image_path,
+            text=normalized_caption_text,
+            subtitle_enabled=subtitle_enabled,
+            subtitle_style=subtitle_style,
+            subtitle_text_color=subtitle_text_color,
+            subtitle_outline_color=subtitle_outline_color,
+            subtitle_outline_width=subtitle_outline_width,
+            subtitle_font_family=subtitle_font_family,
+            subtitle_bold=subtitle_bold,
+            subtitle_italic=subtitle_italic,
+            show_profile_names=show_profile_names,
+            profile_display_name=profile.name,
+        )
+
+        meta_path = Path(render_result["meta_path"])
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+        meta.update(
+            {
+                "source_kind": "broadcast_recording",
+                "source_profile_id": profile_id,
+                "source_profile_name": profile.name,
+                "source_text_preview": normalized_caption_text,
+            }
+        )
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+        return models.VibeTubeRenderResponse(
+            job_id=job_id,
+            output_dir=str(base_out.resolve()),
+            video_path=str(Path(render_result["video_path"]).resolve()),
+            timeline_path=str(Path(render_result["timeline_path"]).resolve()),
+            captions_path=str(Path(render_result["captions_path"]).resolve())
+            if render_result["captions_path"]
+            else None,
+            meta_path=str(Path(render_result["meta_path"]).resolve()),
+            duration=float(render_result["duration_sec"]),
+            source_kind="broadcast_recording",
+            source_profile_id=profile_id,
+            contains_transparency=bool(render_result.get("contains_transparency")),
+            alpha_verified=bool(render_result.get("alpha_verified")),
+            preferred_export_format=str(render_result.get("preferred_export_format") or "mp4"),
+        )
+    except HTTPException:
+        raise
+    except vibetube.VibeTubeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"VibeTube audio render failed: {str(e)}")
 
 
 @app.get("/vibetube/jobs/{job_id}/video")
@@ -1536,6 +1781,28 @@ def _load_vibetube_job_meta(job_dir: Path) -> dict:
         return json.loads(raw) if raw.strip() else {}
     except Exception:
         return {}
+
+
+def _vibetube_job_source_kind(meta: Optional[dict]) -> str:
+    if not isinstance(meta, dict):
+        return "unknown"
+
+    source_kind = meta.get("source_kind")
+    if source_kind in {"generation", "story", "broadcast_recording", "unknown"}:
+        return str(source_kind)
+
+    if meta.get("source_story_id"):
+        return "story"
+    if meta.get("source_generation_id"):
+        return "generation"
+    return "unknown"
+
+
+def _vibetube_job_source_profile_id(meta: Optional[dict]) -> Optional[str]:
+    if not isinstance(meta, dict):
+        return None
+    source_profile_id = meta.get("source_profile_id")
+    return str(source_profile_id) if source_profile_id else None
 
 
 def _vibetube_job_contains_transparency(
@@ -1757,6 +2024,8 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
         video_path: Optional[str] = None
         source_generation_id: Optional[str] = None
         source_story_id: Optional[str] = None
+        source_kind: Optional[str] = None
+        source_profile_id: Optional[str] = None
         source_story_name: Optional[str] = None
         source_profile_name: Optional[str] = None
         source_text_preview: Optional[str] = None
@@ -1769,6 +2038,8 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
                 duration_sec = float(meta.get("duration_sec")) if meta.get("duration_sec") is not None else None
                 source_generation_id = meta.get("source_generation_id")
                 source_story_id = meta.get("source_story_id")
+                source_kind = _vibetube_job_source_kind(meta)
+                source_profile_id = _vibetube_job_source_profile_id(meta)
                 source_story_name = meta.get("source_story_name")
                 source_profile_name = meta.get("source_profile_name")
                 source_text_preview = meta.get("source_text_preview")
@@ -1790,12 +2061,21 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
         if source_generation_id and (not source_profile_name or not source_text_preview):
             generation = db.query(DBGeneration).filter_by(id=source_generation_id).first()
             if generation:
+                if not source_profile_id:
+                    source_profile_id = generation.profile_id
                 if not source_text_preview:
                     source_text_preview = generation.text
                 if not source_profile_name:
                     profile = db.query(DBVoiceProfile).filter_by(id=generation.profile_id).first()
                     if profile:
                         source_profile_name = profile.name
+
+        if source_story_id and source_kind in {None, "unknown"}:
+            source_kind = "story"
+        elif source_generation_id and source_kind in {None, "unknown"}:
+            source_kind = "generation"
+        elif source_kind is None:
+            source_kind = "unknown"
 
         # Last-resort text preview fallback for old jobs: read first subtitle line from captions.srt.
         if not source_text_preview and meta_path.exists():
@@ -1818,6 +2098,8 @@ async def list_vibetube_jobs(db: Session = Depends(get_db)):
                 video_path=video_path,
                 source_generation_id=source_generation_id,
                 source_story_id=source_story_id,
+                source_kind=source_kind,
+                source_profile_id=source_profile_id,
                 source_story_name=source_story_name,
                 source_profile_name=source_profile_name,
                 source_text_preview=source_text_preview,
@@ -2236,6 +2518,7 @@ async def _render_story_vibetube_internal(
         meta = {}
     meta.update(
         {
+            "source_kind": "story",
             "source_story_id": story_id,
             "source_story_name": story.name,
             "source_text_preview": source_text_preview,
@@ -2254,6 +2537,7 @@ async def _render_story_vibetube_internal(
         meta_path=str(Path(render_result["meta_path"]).resolve()),
         duration=float(render_result["duration_sec"]),
         source_story_id=story_id,
+        source_kind="story",
         contains_transparency=bool(render_result.get("contains_transparency")),
         alpha_verified=bool(render_result.get("alpha_verified")),
         preferred_export_format=str(render_result.get("preferred_export_format") or "mp4"),

@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import { AppFrame } from '@/components/AppFrame/AppFrame';
+import { BroadcastTab } from '@/components/BroadcastTab/BroadcastTab';
 import { MainEditor } from '@/components/MainEditor/MainEditor';
 import { SettingsTab } from '@/components/SettingsTab/SettingsTab';
 import { Sidebar } from '@/components/Sidebar';
@@ -84,6 +85,12 @@ const storiesRoute = createRoute({
   component: StoriesTab,
 });
 
+const broadcastRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/broadcast',
+  component: BroadcastTab,
+});
+
 // Characters route (primary)
 const charactersRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -135,6 +142,7 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   storiesRoute,
+  broadcastRoute,
   charactersRoute,
   voicesRoute,
   audioRoute,

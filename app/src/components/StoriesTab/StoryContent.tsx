@@ -56,6 +56,7 @@ import {
 import { useStoryStore } from '@/stores/storyStore';
 import { SortableStoryChatItem } from './StoryChatItem';
 import { StoryRegenerateDialog } from './StoryRegenerateDialog';
+import { StoryVoiceRecordingForm } from './StoryVoiceRecordingForm';
 
 function getPrimaryStoryExportFormat(job: VibeTubeJobResponse | null): VibeTubeExportFormat {
   if (!job) {
@@ -98,8 +99,9 @@ export function StoryContent() {
   // Add generation popover state
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addMode, setAddMode] = useState<'existing' | 'generate'>('generate');
+  const [addMode, setAddMode] = useState<'existing' | 'generate' | 'record'>('generate');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [isAddingRecordedClip, setIsAddingRecordedClip] = useState(false);
   const { data: historyData } = useHistory();
 
   // Filter generations not in story and matching search
@@ -433,6 +435,51 @@ export function StoryContent() {
     await handleGenerateSubmit(data, selectedProfileId);
   };
 
+  const handleAddRecordedClip = async ({
+    file,
+    profileId,
+    language,
+    text,
+  }: {
+    file: File;
+    profileId: string;
+    language: StoryItemRegenerateRequest['language'];
+    text: string;
+  }) => {
+    if (!story) {
+      return;
+    }
+
+    setIsAddingRecordedClip(true);
+    try {
+      const generation = await apiClient.createGenerationFromAudio({
+        profile_id: profileId,
+        audio: file,
+        language,
+        text: text.trim() || undefined,
+      });
+      await addStoryItem.mutateAsync({
+        storyId: story.id,
+        data: { generation_id: generation.id },
+      });
+      await queryClient.invalidateQueries({ queryKey: ['history'] });
+      setIsAddOpen(false);
+      setAddMode('generate');
+      toast({
+        title: 'Added to story',
+        description: 'Recorded voice clip was added to this story.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to add recording',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingRecordedClip(false);
+    }
+  };
+
   const handlePlayFromItem = (itemStartMs: number) => {
     if (!story) return;
 
@@ -553,6 +600,67 @@ export function StoryContent() {
     }
   };
 
+  const handleRecordedRegenerateSubmit = async ({
+    file,
+    profileId,
+    language,
+    text,
+  }: {
+    file: File;
+    profileId: string;
+    language: StoryItemRegenerateRequest['language'];
+    text: string;
+  }) => {
+    if (!story || !editingItemId) {
+      return;
+    }
+
+    setRegenerateStatusMessage('Importing recorded audio...');
+    try {
+      const generation = await apiClient.createGenerationFromAudio({
+        profile_id: profileId,
+        audio: file,
+        language,
+        text: text.trim() || undefined,
+      });
+      regenerateItem.mutate(
+        {
+          storyId: story.id,
+          itemId: editingItemId,
+          data: {
+            generation_id: generation.id,
+            language,
+          },
+        },
+        {
+          onSuccess: () => {
+            setEditingItemId(null);
+            setRegenerateStatusMessage('');
+            toast({
+              title: 'Clip replaced',
+              description: 'The recorded voice clip replaced this story item.',
+            });
+          },
+          onError: (error) => {
+            setRegenerateStatusMessage('');
+            toast({
+              title: 'Failed to replace clip',
+              description: error.message,
+              variant: 'destructive',
+            });
+          },
+        },
+      );
+    } catch (error) {
+      setRegenerateStatusMessage('');
+      toast({
+        title: 'Failed to import recording',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (!selectedStoryId) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -606,7 +714,7 @@ export function StoryContent() {
               </PopoverTrigger>
               <PopoverContent className="w-[420px] p-0" align="start">
                 <div className="border-b p-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button
                       type="button"
                       variant={addMode === 'generate' ? 'default' : 'outline'}
@@ -622,6 +730,14 @@ export function StoryContent() {
                       onClick={() => setAddMode('existing')}
                     >
                       Existing
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={addMode === 'record' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAddMode('record')}
+                    >
+                      Record Voice
                     </Button>
                   </div>
                 </div>
@@ -659,7 +775,7 @@ export function StoryContent() {
                       )}
                     </div>
                   </>
-                ) : (
+                ) : addMode === 'generate' ? (
                   <div className="p-3">
                     <Form {...generateForm}>
                       <form
@@ -792,6 +908,19 @@ export function StoryContent() {
                         </Button>
                       </form>
                     </Form>
+                  </div>
+                ) : (
+                  <div className="p-3">
+                    <StoryVoiceRecordingForm
+                      profiles={profiles || []}
+                      initialProfileId={selectedProfileId}
+                      initialLanguage={generateForm.getValues('language')}
+                      isSubmitting={isAddingRecordedClip}
+                      submitLabel="Record and Add"
+                      submittingLabel="Adding..."
+                      resetKey={`${story.id}:${isAddOpen}:${addMode}`}
+                      onSubmit={handleAddRecordedClip}
+                    />
                   </div>
                 )}
               </PopoverContent>
@@ -997,6 +1126,7 @@ export function StoryContent() {
           }
         }}
         onSubmit={handleRegenerateSubmit}
+        onSubmitRecorded={handleRecordedRegenerateSubmit}
       />
     </>
   );

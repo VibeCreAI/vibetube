@@ -53,6 +53,9 @@ export interface PlatformLifecycle {
   stopServer(): Promise<void>;
   setKeepServerRunning(keep: boolean): Promise<void>;
   setupWindowCloseHandler(): Promise<void>;
+  openBroadcastOutputWindow(): Promise<void>;
+  focusBroadcastOutputWindow(): Promise<void>;
+  closeBroadcastOutputWindow(): Promise<void>;
   onServerReady?: () => void;
 }
 

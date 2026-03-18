@@ -217,11 +217,20 @@ export interface StoryItemSplit {
 }
 
 export interface StoryItemRegenerateRequest {
-  profile_id: string;
-  text: string;
+  generation_id?: string;
+  profile_id?: string;
+  text?: string;
   language: LanguageCode;
   seed?: number;
   model_size?: '1.7B' | '0.6B';
+  instruct?: string;
+}
+
+export interface AudioGenerationCreateRequest {
+  profile_id: string;
+  audio: File;
+  text?: string;
+  language?: LanguageCode;
   instruct?: string;
 }
 
@@ -332,6 +341,42 @@ export interface VibeTubeRenderRequest {
   blink?: File;
 }
 
+export interface VibeTubeAudioRenderRequest {
+  profile_id: string;
+  audio: File;
+  caption_text?: string;
+  fps?: number;
+  resolution_preset?: string;
+  width?: number;
+  height?: number;
+  on_threshold?: number;
+  off_threshold?: number;
+  smoothing_windows?: number;
+  min_hold_windows?: number;
+  blink_min_interval_sec?: number;
+  blink_max_interval_sec?: number;
+  blink_duration_frames?: number;
+  head_motion_amount_px?: number;
+  head_motion_change_sec?: number;
+  head_motion_smoothness?: number;
+  voice_bounce_amount_px?: number;
+  voice_bounce_sensitivity?: number;
+  use_background_color?: boolean;
+  use_background_image?: boolean;
+  use_background?: boolean;
+  background_color?: string;
+  subtitle_enabled?: boolean;
+  subtitle_style?: 'minimal' | 'cinema' | 'glass';
+  subtitle_text_color?: string;
+  subtitle_outline_color?: string;
+  subtitle_outline_width?: number;
+  subtitle_font_family?: 'sans' | 'serif' | 'mono';
+  subtitle_bold?: boolean;
+  subtitle_italic?: boolean;
+  show_profile_names?: boolean;
+  background_image?: File;
+}
+
 export interface VibeTubeAvatarPackResponse {
   profile_id: string;
   idle_url?: string;
@@ -381,6 +426,8 @@ export interface VibeTubeRenderResponse {
   duration: number;
   source_generation_id?: string;
   source_story_id?: string;
+  source_kind?: 'generation' | 'story' | 'broadcast_recording' | 'unknown';
+  source_profile_id?: string;
   contains_transparency?: boolean;
   alpha_verified?: boolean;
   preferred_export_format?: VibeTubeExportFormat;
@@ -393,6 +440,8 @@ export interface VibeTubeJobResponse {
   video_path?: string;
   source_generation_id?: string;
   source_story_id?: string;
+  source_kind?: 'generation' | 'story' | 'broadcast_recording' | 'unknown';
+  source_profile_id?: string;
   source_story_name?: string;
   source_profile_name?: string;
   source_text_preview?: string;

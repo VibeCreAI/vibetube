@@ -779,6 +779,15 @@ fn set_keep_server_running(state: State<'_, ServerState>, keep_running: bool) {
 }
 
 #[command]
+fn destroy_window_by_label(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(&label) else {
+        return Ok(());
+    };
+
+    window.destroy().map_err(|error| error.to_string())
+}
+
+#[command]
 async fn start_system_audio_capture(
     state: State<'_, audio_capture::AudioCaptureState>,
     max_duration_secs: u32,
@@ -867,6 +876,7 @@ pub fn run() {
             start_server,
             stop_server,
             set_keep_server_running,
+            destroy_window_by_label,
             start_system_audio_capture,
             stop_system_audio_capture,
             is_system_audio_supported,
@@ -876,6 +886,11 @@ pub fn run() {
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    window.destroy().ok();
+                    return;
+                }
+
                 // Prevent automatic close
                 api.prevent_close();
 

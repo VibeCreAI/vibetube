@@ -7,6 +7,7 @@ from __future__ import annotations
 import contextlib
 import json
 import math
+import os
 import random
 import re
 import shutil
@@ -1894,8 +1895,9 @@ def _load_subtitle_font(
     subtitle_italic: bool,
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for font_name in _subtitle_font_candidates(subtitle_font_family, subtitle_bold, subtitle_italic):
+        resolved_font_name = _resolve_font_path(font_name)
         with contextlib.suppress(OSError):
-            return ImageFont.truetype(font_name, font_size)
+            return ImageFont.truetype(resolved_font_name, font_size)
     return ImageFont.load_default()
 
 
@@ -1916,25 +1918,170 @@ def _subtitle_font_candidates(
     )
     family_map = {
         "sans": {
-            "regular": ["DejaVuSans.ttf", "arial.ttf"],
-            "bold": ["DejaVuSans-Bold.ttf", "arialbd.ttf", "arial.ttf"],
-            "italic": ["DejaVuSans-Oblique.ttf", "ariali.ttf", "DejaVuSans.ttf"],
-            "bold-italic": ["DejaVuSans-BoldOblique.ttf", "arialbi.ttf", "DejaVuSans-Bold.ttf"],
+            "regular": [
+                "malgun.ttf",
+                "AppleSDGothicNeo.ttc",
+                "NotoSansCJK-Regular.ttc",
+                "NotoSansCJKkr-Regular.otf",
+                "NanumGothic.ttf",
+                "Arial Unicode.ttf",
+                "Arial Unicode MS.ttf",
+                "Segoe UI.ttf",
+                "DejaVuSans.ttf",
+                "arial.ttf",
+            ],
+            "bold": [
+                "malgunbd.ttf",
+                "AppleSDGothicNeoB.ttc",
+                "NotoSansCJK-Bold.ttc",
+                "NotoSansCJKkr-Bold.otf",
+                "NanumGothicBold.ttf",
+                "Arial Unicode.ttf",
+                "Arial Unicode MS.ttf",
+                "segoeuib.ttf",
+                "DejaVuSans-Bold.ttf",
+                "arialbd.ttf",
+                "arial.ttf",
+            ],
+            "italic": [
+                "malgun.ttf",
+                "AppleSDGothicNeo.ttc",
+                "NotoSansCJK-Regular.ttc",
+                "NotoSansCJKkr-Regular.otf",
+                "NanumGothic.ttf",
+                "Arial Unicode.ttf",
+                "Arial Unicode MS.ttf",
+                "Segoe UI Italic.ttf",
+                "segoeuii.ttf",
+                "DejaVuSans-Oblique.ttf",
+                "ariali.ttf",
+                "DejaVuSans.ttf",
+            ],
+            "bold-italic": [
+                "malgunbd.ttf",
+                "AppleSDGothicNeoB.ttc",
+                "NotoSansCJK-Bold.ttc",
+                "NotoSansCJKkr-Bold.otf",
+                "NanumGothicBold.ttf",
+                "Arial Unicode.ttf",
+                "Arial Unicode MS.ttf",
+                "Segoe UI Bold Italic.ttf",
+                "segoeuiz.ttf",
+                "DejaVuSans-BoldOblique.ttf",
+                "arialbi.ttf",
+                "DejaVuSans-Bold.ttf",
+            ],
         },
         "serif": {
-            "regular": ["DejaVuSerif.ttf", "times.ttf", "Georgia.ttf"],
-            "bold": ["DejaVuSerif-Bold.ttf", "timesbd.ttf", "Georgia Bold.ttf", "DejaVuSerif.ttf"],
-            "italic": ["DejaVuSerif-Italic.ttf", "timesi.ttf", "Georgia Italic.ttf", "DejaVuSerif.ttf"],
-            "bold-italic": ["DejaVuSerif-BoldItalic.ttf", "timesbi.ttf", "DejaVuSerif-Bold.ttf"],
+            "regular": [
+                "batang.ttc",
+                "AppleMyungjo.ttf",
+                "NotoSerifCJK-Regular.ttc",
+                "NotoSerifCJKkr-Regular.otf",
+                "NanumMyeongjo.ttf",
+                "DejaVuSerif.ttf",
+                "times.ttf",
+                "Georgia.ttf",
+            ],
+            "bold": [
+                "batang.ttc",
+                "AppleMyungjo.ttf",
+                "NotoSerifCJK-Bold.ttc",
+                "NotoSerifCJKkr-Bold.otf",
+                "NanumMyeongjoBold.ttf",
+                "DejaVuSerif-Bold.ttf",
+                "timesbd.ttf",
+                "Georgia Bold.ttf",
+                "DejaVuSerif.ttf",
+            ],
+            "italic": [
+                "batang.ttc",
+                "AppleMyungjo.ttf",
+                "NotoSerifCJK-Regular.ttc",
+                "NotoSerifCJKkr-Regular.otf",
+                "NanumMyeongjo.ttf",
+                "DejaVuSerif-Italic.ttf",
+                "timesi.ttf",
+                "Georgia Italic.ttf",
+                "DejaVuSerif.ttf",
+            ],
+            "bold-italic": [
+                "batang.ttc",
+                "AppleMyungjo.ttf",
+                "NotoSerifCJK-Bold.ttc",
+                "NotoSerifCJKkr-Bold.otf",
+                "NanumMyeongjoBold.ttf",
+                "DejaVuSerif-BoldItalic.ttf",
+                "timesbi.ttf",
+                "DejaVuSerif-Bold.ttf",
+            ],
         },
         "mono": {
-            "regular": ["DejaVuSansMono.ttf", "consola.ttf", "cour.ttf"],
-            "bold": ["DejaVuSansMono-Bold.ttf", "consolab.ttf", "courbd.ttf", "DejaVuSansMono.ttf"],
-            "italic": ["DejaVuSansMono-Oblique.ttf", "consolai.ttf", "DejaVuSansMono.ttf"],
-            "bold-italic": ["DejaVuSansMono-BoldOblique.ttf", "consolaz.ttf", "DejaVuSansMono-Bold.ttf"],
+            "regular": [
+                "D2Coding.ttf",
+                "NotoSansMonoCJK-Regular.ttc",
+                "DejaVuSansMono.ttf",
+                "consola.ttf",
+                "cour.ttf",
+                "malgun.ttf",
+            ],
+            "bold": [
+                "D2CodingBold.ttf",
+                "NotoSansMonoCJK-Bold.ttc",
+                "DejaVuSansMono-Bold.ttf",
+                "consolab.ttf",
+                "courbd.ttf",
+                "DejaVuSansMono.ttf",
+                "malgunbd.ttf",
+            ],
+            "italic": [
+                "D2Coding.ttf",
+                "NotoSansMonoCJK-Regular.ttc",
+                "DejaVuSansMono-Oblique.ttf",
+                "consolai.ttf",
+                "DejaVuSansMono.ttf",
+                "malgun.ttf",
+            ],
+            "bold-italic": [
+                "D2CodingBold.ttf",
+                "NotoSansMonoCJK-Bold.ttc",
+                "DejaVuSansMono-BoldOblique.ttf",
+                "consolaz.ttf",
+                "DejaVuSansMono-Bold.ttf",
+                "malgunbd.ttf",
+            ],
         },
     }
     return family_map.get(family, family_map["sans"])[style_key]
+
+
+def _resolve_font_path(font_name: str) -> str:
+    font_path = Path(font_name)
+    if font_path.exists():
+        return str(font_path)
+
+    search_dirs: list[Path] = []
+    windir = os.environ.get("WINDIR")
+    if windir:
+        search_dirs.append(Path(windir) / "Fonts")
+    search_dirs.extend(
+        [
+            Path("/usr/share/fonts"),
+            Path("/usr/local/share/fonts"),
+            Path.home() / ".fonts",
+            Path.home() / ".local" / "share" / "fonts",
+            Path("/System/Library/Fonts"),
+            Path("/Library/Fonts"),
+            Path.home() / "Library" / "Fonts",
+        ]
+    )
+
+    for directory in search_dirs:
+        candidate = directory / font_name
+        if candidate.exists():
+            return str(candidate)
+
+    return font_name
 
 
 def _load_name_tag_font(height: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:

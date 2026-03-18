@@ -2,6 +2,7 @@ import type { TranscriptionLanguageCode } from '@/lib/constants/languages';
 import { useServerStore } from '@/stores/serverStore';
 import type {
   ActiveTasksResponse,
+  AudioGenerationCreateRequest,
   GenerationRequest,
   GenerationResponse,
   HealthResponse,
@@ -32,6 +33,7 @@ import type {
   VibeTubeAvatarPreviewResponse,
   VibeTubeExportFormat,
   VibeTubeJobResponse,
+  VibeTubeAudioRenderRequest,
   VibeTubeRenderRequest,
   VibeTubeRenderResponse,
   VoiceProfileCreate,
@@ -222,6 +224,30 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async createGenerationFromAudio(data: AudioGenerationCreateRequest): Promise<GenerationResponse> {
+    const url = `${this.getBaseUrl()}/generations/import-audio`;
+    const formData = new FormData();
+    formData.append('profile_id', data.profile_id);
+    formData.append('file', data.audio);
+    if (data.text !== undefined) formData.append('text', data.text);
+    if (data.language !== undefined) formData.append('language', data.language);
+    if (data.instruct !== undefined) formData.append('instruct', data.instruct);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        detail: response.statusText,
+      }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 
   // History
@@ -680,6 +706,79 @@ class ApiClient {
     if (data.idle_blink) formData.append('idle_blink', data.idle_blink);
     if (data.talk_blink) formData.append('talk_blink', data.talk_blink);
     if (data.blink) formData.append('blink', data.blink);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async renderVibeTubeFromAudio(data: VibeTubeAudioRenderRequest): Promise<VibeTubeRenderResponse> {
+    const url = `${this.getBaseUrl()}/vibetube/render-audio`;
+    const formData = new FormData();
+
+    formData.append('profile_id', data.profile_id);
+    formData.append('audio', data.audio);
+    if (data.caption_text !== undefined) formData.append('caption_text', data.caption_text);
+    if (data.fps !== undefined) formData.append('fps', String(data.fps));
+    if (data.resolution_preset !== undefined)
+      formData.append('resolution_preset', data.resolution_preset);
+    if (data.width !== undefined) formData.append('width', String(data.width));
+    if (data.height !== undefined) formData.append('height', String(data.height));
+    if (data.on_threshold !== undefined) formData.append('on_threshold', String(data.on_threshold));
+    if (data.off_threshold !== undefined)
+      formData.append('off_threshold', String(data.off_threshold));
+    if (data.smoothing_windows !== undefined)
+      formData.append('smoothing_windows', String(data.smoothing_windows));
+    if (data.min_hold_windows !== undefined)
+      formData.append('min_hold_windows', String(data.min_hold_windows));
+    if (data.blink_min_interval_sec !== undefined)
+      formData.append('blink_min_interval_sec', String(data.blink_min_interval_sec));
+    if (data.blink_max_interval_sec !== undefined)
+      formData.append('blink_max_interval_sec', String(data.blink_max_interval_sec));
+    if (data.blink_duration_frames !== undefined)
+      formData.append('blink_duration_frames', String(data.blink_duration_frames));
+    if (data.head_motion_amount_px !== undefined)
+      formData.append('head_motion_amount_px', String(data.head_motion_amount_px));
+    if (data.head_motion_change_sec !== undefined)
+      formData.append('head_motion_change_sec', String(data.head_motion_change_sec));
+    if (data.head_motion_smoothness !== undefined)
+      formData.append('head_motion_smoothness', String(data.head_motion_smoothness));
+    if (data.voice_bounce_amount_px !== undefined)
+      formData.append('voice_bounce_amount_px', String(data.voice_bounce_amount_px));
+    if (data.voice_bounce_sensitivity !== undefined)
+      formData.append('voice_bounce_sensitivity', String(data.voice_bounce_sensitivity));
+    if (data.use_background !== undefined)
+      formData.append('use_background', String(data.use_background));
+    if (data.use_background_color !== undefined)
+      formData.append('use_background_color', String(data.use_background_color));
+    if (data.use_background_image !== undefined)
+      formData.append('use_background_image', String(data.use_background_image));
+    if (data.background_color !== undefined)
+      formData.append('background_color', data.background_color);
+    if (data.subtitle_enabled !== undefined)
+      formData.append('subtitle_enabled', String(data.subtitle_enabled));
+    if (data.subtitle_style !== undefined) formData.append('subtitle_style', data.subtitle_style);
+    if (data.subtitle_text_color !== undefined)
+      formData.append('subtitle_text_color', data.subtitle_text_color);
+    if (data.subtitle_outline_color !== undefined)
+      formData.append('subtitle_outline_color', data.subtitle_outline_color);
+    if (data.subtitle_outline_width !== undefined)
+      formData.append('subtitle_outline_width', String(data.subtitle_outline_width));
+    if (data.subtitle_font_family !== undefined)
+      formData.append('subtitle_font_family', data.subtitle_font_family);
+    if (data.subtitle_bold !== undefined)
+      formData.append('subtitle_bold', String(data.subtitle_bold));
+    if (data.subtitle_italic !== undefined)
+      formData.append('subtitle_italic', String(data.subtitle_italic));
+    if (data.show_profile_names !== undefined)
+      formData.append('show_profile_names', String(data.show_profile_names));
+    if (data.background_image) formData.append('background_image', data.background_image);
 
     const response = await fetch(url, {
       method: 'POST',

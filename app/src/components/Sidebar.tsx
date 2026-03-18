@@ -1,5 +1,5 @@
 import { Link, useMatchRoute } from '@tanstack/react-router';
-import { BookOpen, Clapperboard, Loader2, Moon, Settings, Sun, UserRound } from 'lucide-react';
+import { BookOpen, Clapperboard, Loader2, Mic2, Moon, Settings, Sun, UserRound } from 'lucide-react';
 import vibetubeLogo from '@/assets/vibetube-logo.png';
 import { cn } from '@/lib/utils/cn';
 import { useGenerationStore } from '@/stores/generationStore';
@@ -13,6 +13,7 @@ interface SidebarProps {
 const tabs = [
   { id: 'main', path: '/', icon: Clapperboard, label: 'Generate' },
   { id: 'stories', path: '/stories', icon: BookOpen, label: 'Stories' },
+  { id: 'broadcast', path: '/broadcast', icon: Mic2, label: 'Broadcast' },
   { id: 'characters', path: '/characters', icon: UserRound, label: 'Profiles' },
   { id: 'settings', path: '/settings', icon: Settings, label: 'Settings' },
 ];

@@ -92,6 +92,12 @@ class WebLifecycle implements PlatformLifecycle {
   async setKeepServerRunning(_keep: boolean): Promise<void> {}
 
   async setupWindowCloseHandler(): Promise<void> {}
+
+  async openBroadcastOutputWindow(): Promise<void> {}
+
+  async focusBroadcastOutputWindow(): Promise<void> {}
+
+  async closeBroadcastOutputWindow(): Promise<void> {}
 }
 
 const webMetadata: PlatformMetadata = {
