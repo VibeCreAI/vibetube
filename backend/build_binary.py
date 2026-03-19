@@ -2,10 +2,14 @@
 PyInstaller build script for creating standalone Python server binary.
 """
 
-import PyInstaller.__main__
 import os
 import platform
+import subprocess
+import sys
+import importlib
 from pathlib import Path
+
+import PyInstaller.__main__
 
 
 def is_apple_silicon():
@@ -13,9 +17,32 @@ def is_apple_silicon():
     return platform.system() == "Darwin" and platform.machine() == "arm64"
 
 
+def ensure_optional_engine_dependencies():
+    """
+    Ensure optional runtime engine packages are present before bundling.
+
+    Chatterbox is installed without dependencies to avoid conflicting pin sets;
+    required sub-dependencies are already covered in backend/requirements.txt.
+    """
+
+    def _install_if_missing(module_name: str, pip_args: list[str]) -> None:
+        try:
+            importlib.import_module(module_name)
+            return
+        except ModuleNotFoundError:
+            print(f"Missing {module_name}; installing {' '.join(pip_args)}")
+
+        subprocess.check_call([sys.executable, "-m", "pip", "install", *pip_args])
+        importlib.import_module(module_name)
+
+    _install_if_missing("chatterbox", ["--no-deps", "chatterbox-tts"])
+
+
 def build_server():
     """Build Python server as standalone binary."""
     backend_dir = Path(__file__).parent
+
+    ensure_optional_engine_dependencies()
 
     # PyInstaller arguments
     args = [

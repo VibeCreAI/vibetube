@@ -6,6 +6,7 @@ Wraps the LuxTTS (ZipVoice) model for zero-shot voice cloning.
 
 import asyncio
 import logging
+import tempfile
 from typing import Optional, Tuple
 
 import numpy as np
@@ -17,6 +18,7 @@ from .base import (
     is_model_cached,
     model_load_progress,
 )
+from ..utils.audio import load_audio, save_audio
 from ..utils.cache import cache_voice_prompt, get_cache_key, get_cached_voice_prompt
 
 logger = logging.getLogger(__name__)
@@ -117,7 +119,42 @@ class LuxTTSBackend:
                 return cached, True
 
         def _encode_sync():
-            return self.model.encode_prompt(prompt_audio=str(audio_path), duration=5, rms=0.01)
+            prompt_path = str(audio_path)
+            temp_prompt_path: Optional[str] = None
+            try:
+                # LuxTTS can fail in some environments when extremely short/poorly decoded
+                # references produce too few frames for downstream conv kernels.
+                audio, sr = load_audio(prompt_path, sample_rate=24000, mono=True)
+                min_prompt_samples = int(sr * 0.75)
+                if audio.size < min_prompt_samples:
+                    logger.warning(
+                        "LuxTTS reference prompt is very short (%d samples); padding to %d samples",
+                        audio.size,
+                        min_prompt_samples,
+                    )
+                    padded = np.pad(audio.astype(np.float32), (0, min_prompt_samples - audio.size))
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                        temp_prompt_path = tmp_file.name
+                    save_audio(padded, temp_prompt_path, sr)
+                    prompt_path = temp_prompt_path
+
+                return self.model.encode_prompt(prompt_audio=prompt_path, duration=5, rms=0.01)
+            except RuntimeError as exc:
+                message = str(exc)
+                if "Kernel size can't be greater than actual input size" in message:
+                    raise ValueError(
+                        "LuxTTS could not process the reference sample. "
+                        "Try a longer clean WAV sample (2-30 seconds)."
+                    ) from exc
+                raise
+            finally:
+                if temp_prompt_path:
+                    try:
+                        import os
+
+                        os.unlink(temp_prompt_path)
+                    except OSError:
+                        pass
 
         encoded = await asyncio.to_thread(_encode_sync)
 
@@ -147,15 +184,24 @@ class LuxTTSBackend:
                 if torch.cuda.is_available():
                     torch.cuda.manual_seed(seed)
 
-            wav = self.model.generate_speech(
-                text=text,
-                encode_dict=voice_prompt,
-                num_steps=4,
-                guidance_scale=3.0,
-                t_shift=0.5,
-                speed=1.0,
-                return_smooth=False,
-            )
+            try:
+                wav = self.model.generate_speech(
+                    text=text,
+                    encode_dict=voice_prompt,
+                    num_steps=4,
+                    guidance_scale=3.0,
+                    t_shift=0.5,
+                    speed=1.0,
+                    return_smooth=False,
+                )
+            except RuntimeError as exc:
+                message = str(exc)
+                if "Kernel size can't be greater than actual input size" in message:
+                    raise ValueError(
+                        "LuxTTS generation failed on this input. "
+                        "Try longer text and confirm the reference sample is at least 2 seconds."
+                    ) from exc
+                raise
             if isinstance(wav, torch.Tensor):
                 audio = wav.squeeze().detach().cpu().numpy().astype(np.float32)
             else:
