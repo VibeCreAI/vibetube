@@ -52,8 +52,9 @@ async def transcribe_audio(
                 try:
                     await run_model_load(model_config)
                 except Exception as exc:
-                    progress_manager.mark_error(model_config.model_name, str(exc))
-                    task_manager.error_download(model_config.model_name, str(exc))
+                    message = extract_error_message(exc)
+                    progress_manager.mark_error(model_config.model_name, message)
+                    task_manager.error_download(model_config.model_name, message)
 
             task_manager.start_download(model_config.model_name)
             progress_manager.update_progress(

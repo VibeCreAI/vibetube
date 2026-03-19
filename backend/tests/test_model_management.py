@@ -66,3 +66,32 @@ def test_non_luxtts_download_check_unchanged(monkeypatch, tmp_path: Path):
     downloaded, size_mb = model_management.is_model_downloaded(qwen)
     assert downloaded is True
     assert size_mb is not None and size_mb > 0
+
+
+def test_normalize_model_load_error_for_hf_401():
+    qwen = get_model_config("qwen-tts-0.6B")
+    assert qwen is not None
+
+    exc = RuntimeError(
+        "401 Client Error: Unauthorized for url: "
+        "https://huggingface.co/api/models/Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+    )
+
+    message = model_management.normalize_model_load_error(qwen, exc)
+    assert "401 Unauthorized" in message
+    assert "HF_TOKEN" in message
+    assert qwen.hf_repo_id in message
+
+
+def test_normalize_model_load_error_for_offline_mode():
+    qwen = get_model_config("qwen-tts-1.7B")
+    assert qwen is not None
+
+    exc = RuntimeError(
+        "Cannot reach https://huggingface.co/api/models/Qwen/Qwen3-TTS-12Hz-1.7B-Base: "
+        "offline mode is enabled. To disable it, please unset the `HF_HUB_OFFLINE` environment variable."
+    )
+
+    message = model_management.normalize_model_load_error(qwen, exc)
+    assert "Offline mode is enabled" in message
+    assert "HF_HUB_OFFLINE" in message

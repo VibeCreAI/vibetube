@@ -19,6 +19,7 @@ from ..services.model_management import get_generation_model_config, model_downl
 from ..services.uploads import write_upload_to_temp
 from ..utils.audio import trim_tts_output
 from ..utils.chunked_tts import generate_chunked
+from ..utils.progress import get_progress_manager
 from ..utils.tasks import get_task_manager
 
 _ALLOWED_AUDIO_UPLOAD_EXTS = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".aac", ".webm", ".opus"}
@@ -49,12 +50,15 @@ async def _generate_speech_audio(
     if not tts_model._is_model_cached(model_size):
         if queue_download_if_missing:
             task_manager = get_task_manager()
+            progress_manager = get_progress_manager()
 
             async def download_model_background():
                 try:
                     await load_engine_model(engine, model_size)
                 except Exception as exc:
-                    task_manager.error_download(model_config.model_name, str(exc))
+                    message = extract_error_message(exc)
+                    progress_manager.mark_error(model_config.model_name, message)
+                    task_manager.error_download(model_config.model_name, message)
 
             task_manager.start_download(model_config.model_name)
             asyncio.create_task(download_model_background())

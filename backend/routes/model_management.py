@@ -164,8 +164,9 @@ async def trigger_model_download(request: models.ModelDownloadRequest):
             progress_manager.mark_complete(model_config.model_name)
             task_manager.complete_download(model_config.model_name)
         except Exception as exc:
-            progress_manager.mark_error(model_config.model_name, str(exc))
-            task_manager.error_download(model_config.model_name, str(exc))
+            message = extract_error_message(exc)
+            progress_manager.mark_error(model_config.model_name, message)
+            task_manager.error_download(model_config.model_name, message)
 
     task_manager.start_download(model_config.model_name)
     progress_manager.update_progress(
@@ -260,4 +261,3 @@ async def clear_cache():
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to clear cache: {str(exc)}")
-

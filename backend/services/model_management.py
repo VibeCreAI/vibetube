@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import shutil
 import urllib.request
 from pathlib import Path
@@ -122,10 +123,58 @@ def model_download_message(model_config) -> str:
     return f"{model_config.display_name} is being downloaded. Please wait and try again."
 
 
+def _is_hf_auth_error(raw_message: str) -> bool:
+    msg = raw_message.lower()
+    return (
+        "huggingface" in msg
+        and (
+            "401" in msg
+            or "403" in msg
+            or "unauthorized" in msg
+            or "gated" in msg
+            or "forbidden" in msg
+            or "access to model" in msg
+        )
+    )
+
+
+def _is_hf_offline_error(raw_message: str) -> bool:
+    msg = raw_message.lower()
+    return (
+        "offline mode is enabled" in msg
+        or "hf_hub_offline" in msg
+        or "transformers_offline" in msg
+    )
+
+
+def normalize_model_load_error(model_config, exc: Exception) -> str:
+    """Convert upstream model-loader errors into readable, actionable text."""
+    raw_message = str(exc).strip() or exc.__class__.__name__
+
+    if _is_hf_auth_error(raw_message):
+        return (
+            f"Cannot download {model_config.display_name} ({model_config.hf_repo_id}): "
+            "Hugging Face returned 401 Unauthorized (gated/private model). "
+            "Set HF_TOKEN with access to this model, restart VibeTube, and retry."
+        )
+
+    if _is_hf_offline_error(raw_message):
+        return (
+            f"Cannot reach Hugging Face to download {model_config.display_name}. "
+            "Offline mode is enabled. Unset HF_HUB_OFFLINE/TRANSFORMERS_OFFLINE, "
+            "restart VibeTube, and retry."
+        )
+
+    return re.sub(r"\s+", " ", raw_message).strip()
+
+
 async def run_model_load(model_config) -> None:
-    result = get_model_load_func(model_config)()
-    if asyncio.iscoroutine(result):
-        await result
+    try:
+        result = get_model_load_func(model_config)()
+        if asyncio.iscoroutine(result):
+            await result
+    except Exception as exc:
+        raise RuntimeError(normalize_model_load_error(model_config, exc)) from exc
 
 
 def stylized_pixel_model_path() -> Path:

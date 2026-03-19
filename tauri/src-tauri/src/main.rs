@@ -12,6 +12,11 @@ use tokio::sync::mpsc;
 const LEGACY_PORT: u16 = 8000;
 const SERVER_PORT: u16 = 17493;
 
+fn is_port_listening(port: u16, timeout: std::time::Duration) -> bool {
+    use std::net::TcpStream;
+    TcpStream::connect_timeout(&format!("127.0.0.1:{}", port).parse().unwrap(), timeout).is_ok()
+}
+
 /// Find a vibetube-server process listening on a given port (Windows only).
 ///
 /// Uses PowerShell `Get-NetTCPConnection` to resolve the owning PID and then
@@ -312,8 +317,19 @@ async fn start_server(
     let timeout = tokio::time::Duration::from_secs(120);
     let start_time = tokio::time::Instant::now();
     let mut error_output = Vec::new();
+    let port_probe_delay = tokio::time::Duration::from_secs(2);
 
     loop {
+        if start_time.elapsed() > port_probe_delay
+            && is_port_listening(SERVER_PORT, std::time::Duration::from_millis(250))
+        {
+            println!(
+                "Server port {} is accepting connections; treating server as ready",
+                SERVER_PORT
+            );
+            break;
+        }
+
         if start_time.elapsed() > timeout {
             eprintln!("Server startup timeout after 120 seconds");
             if !error_output.is_empty() {
@@ -321,6 +337,14 @@ async fn start_server(
                 for line in &error_output {
                     eprintln!("  {}", line);
                 }
+            }
+
+            if is_port_listening(SERVER_PORT, std::time::Duration::from_secs(1)) {
+                println!(
+                    "Server port {} is reachable after timeout; proceeding",
+                    SERVER_PORT
+                );
+                break;
             }
 
             // In dev mode, check if a manual server came up during the wait

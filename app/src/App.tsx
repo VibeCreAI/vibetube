@@ -4,6 +4,7 @@ import vibetubeLogo from '@/assets/vibetube-logo.png';
 import { BroadcastOutputShell } from '@/components/BroadcastTab/BroadcastOutputShell';
 import ShinyText from '@/components/ShinyText';
 import { TitleBarDragRegion } from '@/components/TitleBarDragRegion';
+import { Button } from '@/components/ui/button';
 import { useAutoUpdater } from '@/hooks/useAutoUpdater';
 import { TOP_SAFE_AREA_PADDING } from '@/lib/constants/ui';
 import { cn } from '@/lib/utils/cn';
@@ -41,6 +42,7 @@ function App() {
     new URLSearchParams(window.location.search).get('broadcastOutput') === '1';
   const [serverReady, setServerReady] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [serverError, setServerError] = useState<string | null>(null);
   const serverStartingRef = useRef(false);
 
   // Automatically check for app updates on startup and show toast notifications
@@ -91,17 +93,18 @@ function App() {
       return;
     }
 
-    // Auto-start server in production
-    if (serverStartingRef.current) {
-      return;
-    }
+    async function startBundledServer() {
+      // Auto-start server in production
+      if (serverStartingRef.current) {
+        return;
+      }
 
-    serverStartingRef.current = true;
-    console.log('Production mode: Starting bundled server...');
+      serverStartingRef.current = true;
+      setServerError(null);
+      console.log('Production mode: Starting bundled server...');
 
-    platform.lifecycle
-      .startServer(false)
-      .then((serverUrl) => {
+      try {
+        const serverUrl = await platform.lifecycle.startServer(false);
         console.log('Server is ready at:', serverUrl);
         // Update the server URL in the store with the dynamically assigned port
         useServerStore.getState().setServerUrl(serverUrl);
@@ -109,13 +112,18 @@ function App() {
         // Mark that we started the server (so we know to stop it on close)
         // @ts-expect-error - adding property to window
         window.__vibetubeServerStartedByApp = true;
-      })
-      .catch((error) => {
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to start the local server.';
         console.error('Failed to auto-start server:', error);
+        setServerError(message);
         serverStartingRef.current = false;
         // @ts-expect-error - adding property to window
         window.__vibetubeServerStartedByApp = false;
-      });
+      }
+    }
+
+    void startBundledServer();
 
     // Cleanup: stop server on actual unmount (not StrictMode remount)
     // Note: Window close is handled separately in Tauri Rust code
@@ -162,13 +170,47 @@ function App() {
             />
           </div>
           <div className="animate-fade-in-delayed">
-            <ShinyText
-              text={LOADING_MESSAGES[loadingMessageIndex]}
-              className="text-lg font-medium text-muted-foreground"
-              speed={2}
-              color="hsl(var(--muted-foreground))"
-              shineColor="hsl(var(--foreground))"
-            />
+            {serverError ? (
+              <div className="mx-auto max-w-xl space-y-4 px-6">
+                <p className="text-sm font-medium text-destructive">Failed to start local server</p>
+                <p className="text-sm text-muted-foreground break-words">{serverError}</p>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    serverStartingRef.current = true;
+                    setServerError(null);
+                    void platform.lifecycle
+                      .startServer(false)
+                      .then((serverUrl) => {
+                        useServerStore.getState().setServerUrl(serverUrl);
+                        setServerReady(true);
+                        // @ts-expect-error - adding property to window
+                        window.__vibetubeServerStartedByApp = true;
+                      })
+                      .catch((error) => {
+                        const message =
+                          error instanceof Error
+                            ? error.message
+                            : 'Failed to start the local server.';
+                        serverStartingRef.current = false;
+                        setServerError(message);
+                        // @ts-expect-error - adding property to window
+                        window.__vibetubeServerStartedByApp = false;
+                      });
+                  }}
+                >
+                  Retry startup
+                </Button>
+              </div>
+            ) : (
+              <ShinyText
+                text={LOADING_MESSAGES[loadingMessageIndex]}
+                className="text-lg font-medium text-muted-foreground"
+                speed={2}
+                color="hsl(var(--muted-foreground))"
+                shineColor="hsl(var(--foreground))"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -183,5 +225,3 @@ function App() {
 }
 
 export default App;
-
-

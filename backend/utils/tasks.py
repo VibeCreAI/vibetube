@@ -45,10 +45,9 @@ class TaskManager:
             del self._active_downloads[model_name]
     
     def error_download(self, model_name: str, error: str) -> None:
-        """Mark a download as failed."""
+        """Mark a download as failed and clear it from active tasks."""
         if model_name in self._active_downloads:
-            self._active_downloads[model_name].status = "error"
-            self._active_downloads[model_name].error = error
+            del self._active_downloads[model_name]
     
     def start_generation(self, task_id: str, profile_id: str, text: str) -> None:
         """Mark a generation as started."""
