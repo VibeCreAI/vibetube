@@ -883,6 +883,19 @@ class ApiClient {
     );
   }
 
+  async generateVibeTubeAvatarSpritesheetPreview(
+    profileId: string,
+    data: VibeTubeAvatarGenerateRequest,
+  ): Promise<VibeTubeAvatarPreviewResponse> {
+    return this.request<VibeTubeAvatarPreviewResponse>(
+      `/profiles/${profileId}/vibetube-avatar-pack/generate-spritesheet-preview`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
   async getVibeTubeAvatarPreview(profileId: string): Promise<VibeTubeAvatarPreviewResponse> {
     return this.request<VibeTubeAvatarPreviewResponse>(
       `/profiles/${profileId}/vibetube-avatar-preview`,

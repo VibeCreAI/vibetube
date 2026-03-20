@@ -354,6 +354,60 @@ async def generate_vibetube_avatar_rest_preview(
 
 
 @router.post(
+    "/profiles/{profile_id}/vibetube-avatar-pack/generate-spritesheet-preview",
+    response_model=models.VibeTubeAvatarPreviewResponse,
+)
+async def generate_vibetube_avatar_spritesheet_preview(
+    profile_id: str,
+    data: models.VibeTubeAvatarGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate all 4 avatar states from a single sprite sheet generation (one-shot)."""
+    profile = db.query(DBVoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    preview_dir = _vibetube_avatar_preview_dir(profile_id)
+    if preview_dir.exists():
+        shutil.rmtree(preview_dir, ignore_errors=True)
+    preview_dir.mkdir(parents=True, exist_ok=True)
+
+    max_attempts = 3
+    base_seed = data.seed if data.seed is not None else random.randint(1, 2_147_000_000)
+
+    try:
+        for attempt in range(max_attempts):
+            try:
+                attempt_seed = base_seed + (attempt * 9973)
+                avatar_local.generate_avatar_spritesheet(
+                    out_dir=preview_dir,
+                    user_prompt=data.prompt,
+                    model_id=(data.model_id or _DEFAULT_AVATAR_MODEL_ID),
+                    lora_id=(data.lora_id or _DEFAULT_AVATAR_LORA_ID),
+                    lora_scale=data.lora_scale,
+                    seed=attempt_seed,
+                    size=data.size,
+                    output_size=data.output_size,
+                    palette_colors=data.palette_colors,
+                    negative_prompt=(data.negative_prompt or avatar_local.DEFAULT_NEGATIVE_PROMPT),
+                    num_inference_steps=data.num_inference_steps,
+                    guidance_scale=data.guidance_scale,
+                )
+                break
+            except avatar_local.AvatarGenerationError as exc:
+                msg = str(exc).lower()
+                if "empty" in msg and attempt < (max_attempts - 1):
+                    continue
+                raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Sprite sheet generation failed: {exc}")
+
+    return _build_vibetube_avatar_preview_response(profile_id)
+
+
+@router.post(
     "/profiles/{profile_id}/vibetube-avatar-pack/generate",
     response_model=models.VibeTubeAvatarPreviewResponse,
 )

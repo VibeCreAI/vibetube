@@ -163,6 +163,122 @@ const AVATAR_STATE_DEFS: Array<{
   },
 ];
 
+type AvatarUploadMode = 'individual' | 'spritesheet';
+
+const SPRITE_SHEET_PROMPT_GUIDE = `Character expression sheet — 1024x1024 PNG sprite sheet with 4 equal 512x512 quadrants, transparent background (alpha channel).
+
+This is a 4-panel expression reference sheet for a single character. Think of it as one base drawing with only the eyes and mouth digitally edited between panels. Every other element — head position, head angle, hair, body, arms, clothing, lighting, shading, line weight — must be absolutely identical across all 4 quadrants. The character's eyes must be anchored at the exact same pixel coordinates in every quadrant.
+
+Top-left (Idle): Eyes fully open, mouth closed, neutral expression.
+Top-right (Talk): Eyes fully open, mouth open in a natural mid-speech position.
+Bottom-left (Idle Blink): Eyes fully closed (mid-blink), mouth closed.
+Bottom-right (Talk Blink): Eyes fully closed (mid-blink), mouth open.
+
+Hard requirements:
+- Canvas: exactly 1024x1024 px, 4 quadrants of exactly 512x512 each, zero padding or gutters between quadrants. Do NOT draw any dividing lines, borders, grid lines, separators, or frames between or around the quadrants — the quadrant boundaries must be completely invisible.
+- Treat each quadrant as a fully independent 512x512 image. The character must be perfectly centered within each 512x512 quadrant — equal empty space on the left and right sides, equal empty space on the top and bottom. The character's horizontal midpoint must align with x=256 of its quadrant and the vertical midpoint must align with y=256 of its quadrant.
+- The character's bounding box (top, bottom, left, right extents) must be identical in every quadrant — same width, same height, same margins on all sides. Do not scale, shrink, grow, or nudge the character between quadrants.
+- ONLY the eyes and mouth shape change between quadrants. Head tilt, hair, body pose, clothing, shadows, character size — all must be pixel-identical.
+- Transparent background in all 4 quadrants (no fill, no gradient, no vignette).
+- Art style: [describe your desired style, e.g. anime, flat vector, pixel art, semi-realistic]
+- Character: [describe your character here]`;
+
+function getContentBounds(
+  imageData: ImageData,
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  const { data, width, height } = imageData;
+  let minX = width,
+    minY = height,
+    maxX = -1,
+    maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 10) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  return maxX === -1 ? null : { minX, minY, maxX, maxY };
+}
+
+
+async function splitSpriteSheet(file: File): Promise<Record<AvatarStateKey, File>> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const FULL = 1024,
+        HALF = 512;
+      if (img.naturalWidth !== FULL || img.naturalHeight !== FULL) {
+        reject(
+          new Error(
+            `Sprite sheet must be exactly 1024×1024 px. Got ${img.naturalWidth}×${img.naturalHeight}.`,
+          ),
+        );
+        return;
+      }
+      const quadrants: Array<{ key: AvatarStateKey; sx: number; sy: number }> = [
+        { key: 'idle', sx: 0, sy: 0 },
+        { key: 'talk', sx: HALF, sy: 0 },
+        { key: 'idle_blink', sx: 0, sy: HALF },
+        { key: 'talk_blink', sx: HALF, sy: HALF },
+      ];
+      const canvas = document.createElement('canvas');
+      canvas.width = HALF;
+      canvas.height = HALF;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas 2D context unavailable.'));
+        return;
+      }
+      const result = {} as Record<AvatarStateKey, File>;
+      function processNext(i: number) {
+        if (i >= quadrants.length) {
+          resolve(result);
+          return;
+        }
+        const { key, sx, sy } = quadrants[i];
+
+        // Draw raw quadrant first to find the content bounding box.
+        ctx!.clearRect(0, 0, HALF, HALF);
+        ctx!.drawImage(img, sx, sy, HALF, HALF, 0, 0, HALF, HALF);
+        const bounds = getContentBounds(ctx!.getImageData(0, 0, HALF, HALF));
+
+        // Redraw with centering offset so the character is centred in the frame.
+        ctx!.clearRect(0, 0, HALF, HALF);
+        if (bounds) {
+          const contentW = bounds.maxX - bounds.minX + 1;
+          const contentH = bounds.maxY - bounds.minY + 1;
+          const offsetX = Math.round((HALF - contentW) / 2) - bounds.minX;
+          const offsetY = Math.round((HALF - contentH) / 2) - bounds.minY;
+          ctx!.drawImage(img, sx, sy, HALF, HALF, offsetX, offsetY, HALF, HALF);
+        } else {
+          ctx!.drawImage(img, sx, sy, HALF, HALF, 0, 0, HALF, HALF);
+        }
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error(`Failed to extract: ${key}`));
+            return;
+          }
+          result[key] = new File([blob], `${key}.png`, { type: 'image/png' });
+          processNext(i + 1);
+        }, 'image/png');
+      }
+      processNext(0);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image.'));
+    };
+    img.src = url;
+  });
+}
+
 // Helper to convert File to base64
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -236,16 +352,17 @@ export function ProfileForm() {
   });
   const [hasSavedVibeTubePack, setHasSavedVibeTubePack] = useState(false);
   const [isPackLoading, setIsPackLoading] = useState(false);
+  const [avatarUploadMode, setAvatarUploadMode] = useState<AvatarUploadMode>('spritesheet');
+  const [spriteSheetPreview, setSpriteSheetPreview] = useState<string | null>(null);
+  const [isSplittingSpriteSheet, setIsSplittingSpriteSheet] = useState(false);
   const [avatarGeneratePrompt, setAvatarGeneratePrompt] = useState('');
   const [avatarGenerateSeed, setAvatarGenerateSeed] = useState<string>('');
   const [avatarModelId, setAvatarModelId] = useState<string>(AVATAR_TEST_MODEL_ID);
   const [avatarStylePreset, setAvatarStylePreset] = useState<string>('none');
   const [avatarQualityPreset, setAvatarQualityPreset] = useState<AvatarQualityPreset>('balanced');
   const [isGeneratingAvatarPack, setIsGeneratingAvatarPack] = useState(false);
-  const [avatarGenerationStage, setAvatarGenerationStage] = useState<'idle' | 'rest' | null>(null);
   const [isApplyingGeneratedAvatarPack, setIsApplyingGeneratedAvatarPack] = useState(false);
   const [hasPendingGeneratedPreview, setHasPendingGeneratedPreview] = useState(false);
-  const [isIdlePreviewReady, setIsIdlePreviewReady] = useState(false);
   const [isAvatarGenPanelOpen, setIsAvatarGenPanelOpen] = useState(false);
   const [imageModelStatus, setImageModelStatus] = useState<ImageModelStatusResponse | null>(null);
   const [isImageModelStatusLoading, setIsImageModelStatusLoading] = useState(false);
@@ -426,6 +543,49 @@ export function ProfileForm() {
     });
   };
 
+  async function handleSpriteSheetUpload(file: File) {
+    if (file.type !== 'image/png') {
+      toast({
+        title: 'Invalid file type',
+        description: 'Sprite sheet must be a PNG.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Sprite sheet must be less than 20 MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSpriteSheetPreview((old) => {
+      if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
+      return URL.createObjectURL(file);
+    });
+    setIsSplittingSpriteSheet(true);
+    setSelectedAvatarPresetId(null);
+    try {
+      const splitFiles = await splitSpriteSheet(file);
+      Object.entries(splitFiles).forEach(([k, f]) => setAvatarStateFile(k as AvatarStateKey, f));
+      form.setValue('avatarFile', splitFiles.idle, { shouldValidate: true });
+      toast({ title: 'Sprite sheet split', description: 'All 4 states extracted successfully.' });
+    } catch (err) {
+      toast({
+        title: 'Split failed',
+        description: err instanceof Error ? err.message : 'Could not split the sprite sheet.',
+        variant: 'destructive',
+      });
+      setSpriteSheetPreview((old) => {
+        if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
+        return null;
+      });
+    } finally {
+      setIsSplittingSpriteSheet(false);
+    }
+  }
+
   const setAvatarPresetFiles = (files: Record<AvatarStateKey, File>) => {
     (Object.entries(files) as Array<[AvatarStateKey, File]>).forEach(([key, file]) => {
       setAvatarStateFile(key, file);
@@ -493,6 +653,12 @@ export function ProfileForm() {
     };
   }, [avatarStatePreviews]);
 
+  useEffect(() => {
+    return () => {
+      if (spriteSheetPreview?.startsWith('blob:')) URL.revokeObjectURL(spriteSheetPreview);
+    };
+  }, [spriteSheetPreview]);
+
   // Restore form state from draft or editing profile
   useEffect(() => {
     if (editingProfile) {
@@ -555,7 +721,6 @@ export function ProfileForm() {
       setAvatarStylePreset('none');
       setAvatarQualityPreset('balanced');
       setHasPendingGeneratedPreview(false);
-      setIsIdlePreviewReady(false);
       setSelectedAvatarPresetId(null);
       setGeneratedStatePreviews({
         idle: null,
@@ -597,7 +762,6 @@ export function ProfileForm() {
     if (!open || !editingProfileId) {
       setHasSavedVibeTubePack(false);
       setHasPendingGeneratedPreview(false);
-      setIsIdlePreviewReady(false);
       if (!open) {
         setAvatarStateFiles({
           idle: null,
@@ -617,6 +781,12 @@ export function ProfileForm() {
           idle_blink: null,
           talk_blink: null,
         });
+        setAvatarUploadMode('spritesheet');
+        setSpriteSheetPreview((old) => {
+          if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
+          return null;
+        });
+        setIsSplittingSpriteSheet(false);
       }
       return;
     }
@@ -629,27 +799,25 @@ export function ProfileForm() {
         if (cancelled) return;
         setHasSavedVibeTubePack(pack.complete);
         const t = Date.now();
+        const stateUrls = {
+          idle: pack.idle_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'idle')}?t=${t}`
+            : null,
+          talk: pack.talk_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk')}?t=${t}`
+            : null,
+          idle_blink: pack.idle_blink_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'idle_blink')}?t=${t}`
+            : null,
+          talk_blink: pack.talk_blink_url
+            ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk_blink')}?t=${t}`
+            : null,
+        };
         setAvatarStatePreviews((prev) => ({
-          idle: prev.idle?.startsWith('blob:')
-            ? prev.idle
-            : pack.idle_url
-              ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'idle')}?t=${t}`
-              : null,
-          talk: prev.talk?.startsWith('blob:')
-            ? prev.talk
-            : pack.talk_url
-              ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk')}?t=${t}`
-              : null,
-          idle_blink: prev.idle_blink?.startsWith('blob:')
-            ? prev.idle_blink
-            : pack.idle_blink_url
-              ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'idle_blink')}?t=${t}`
-              : null,
-          talk_blink: prev.talk_blink?.startsWith('blob:')
-            ? prev.talk_blink
-            : pack.talk_blink_url
-              ? `${apiClient.getVibeTubeAvatarStateUrl(editingProfileId, 'talk_blink')}?t=${t}`
-              : null,
+          idle: prev.idle?.startsWith('blob:') ? prev.idle : stateUrls.idle,
+          talk: prev.talk?.startsWith('blob:') ? prev.talk : stateUrls.talk,
+          idle_blink: prev.idle_blink?.startsWith('blob:') ? prev.idle_blink : stateUrls.idle_blink,
+          talk_blink: prev.talk_blink?.startsWith('blob:') ? prev.talk_blink : stateUrls.talk_blink,
         }));
         return apiClient.getVibeTubeAvatarPreview(editingProfileId).catch(() => null);
       })
@@ -670,7 +838,6 @@ export function ProfileForm() {
             ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(editingProfileId, 'talk_blink')}?t=${t}`
             : null,
         });
-        setIsIdlePreviewReady(Boolean(preview.idle_url) && Boolean(preview.idle_ready));
         setHasPendingGeneratedPreview(preview.complete);
       })
       .catch(() => {
@@ -845,7 +1012,7 @@ export function ProfileForm() {
     }));
   }
 
-  function buildAvatarGenerateRequest() {
+  function buildAvatarGenerateRequest(spritesheet = false) {
     const resolvedModelId = avatarModelId.trim();
     if (!resolvedModelId) {
       throw new Error('Select a model or enter a custom model ID.');
@@ -859,7 +1026,7 @@ export function ProfileForm() {
       prompt: finalPrompt,
       model_id: resolvedModelId,
       seed: parsedAvatarSeed,
-      size: 512,
+      size: spritesheet ? 1024 : 512,
       output_size: 512,
       palette_colors: quality.palette,
       num_inference_steps: quality.steps,
@@ -896,29 +1063,26 @@ export function ProfileForm() {
         ? `${apiClient.getVibeTubeAvatarPreviewStateUrl(profileId, 'talk_blink')}?t=${t}`
         : null,
     });
-    setIsIdlePreviewReady(Boolean(preview.idle_url) && Boolean(preview.idle_ready));
     setHasPendingGeneratedPreview(preview.complete);
   }
 
-  async function generateIdlePreviewForProfile(profileId: string) {
+  async function generateSpritesheetPreviewForProfile(profileId: string) {
     if (!isImageModelReady) {
       toast({
         title: 'Model required',
-        description: 'Download StylizedPixel M80 before using this test feature.',
+        description: 'Download StylizedPixel M80 before using this feature.',
         variant: 'destructive',
       });
       return;
     }
-
     if (!avatarGeneratePrompt.trim()) {
       toast({
         title: 'Prompt required',
-        description: 'Add a character prompt before generating avatar states.',
+        description: 'Add a character prompt before generating.',
         variant: 'destructive',
       });
       return;
     }
-
     if (avatarGenerateSeed.trim() && Number.isNaN(parsedAvatarSeed)) {
       toast({
         title: 'Invalid seed',
@@ -927,99 +1091,28 @@ export function ProfileForm() {
       });
       return;
     }
-
     setHasPendingGeneratedPreview(false);
-    setIsIdlePreviewReady(false);
-    setGeneratedStatePreviews({
-      idle: null,
-      talk: null,
-      idle_blink: null,
-      talk_blink: null,
-    });
+    setGeneratedStatePreviews({ idle: null, talk: null, idle_blink: null, talk_blink: null });
     setIsGeneratingAvatarPack(true);
-    setAvatarGenerationStage('idle');
     try {
-      const preview = await apiClient.generateVibeTubeAvatarIdlePreview(
+      const preview = await apiClient.generateVibeTubeAvatarSpritesheetPreview(
         profileId,
-        buildAvatarGenerateRequest(),
+        buildAvatarGenerateRequest(true),
       );
       applyGeneratedPreviewUrls(profileId, preview);
       toast({
-        title: 'Idle preview generated',
-        description: 'Idle is ready. Review it, then click Generate Rest 3.',
+        title: 'Sprite sheet generated',
+        description: 'All 4 states ready. Review the previews, then click Apply.',
       });
     } catch (error) {
       setHasPendingGeneratedPreview(false);
-      setIsIdlePreviewReady(false);
       toast({
-        title: 'Idle generation failed',
-        description: error instanceof Error ? error.message : 'Failed to generate idle preview.',
+        title: 'Generation failed',
+        description: error instanceof Error ? error.message : 'Failed to generate sprite sheet.',
         variant: 'destructive',
       });
     } finally {
       setIsGeneratingAvatarPack(false);
-      setAvatarGenerationStage(null);
-    }
-  }
-
-  async function generateRestPreviewForProfile(profileId: string) {
-    if (!isImageModelReady) {
-      toast({
-        title: 'Model required',
-        description: 'Download StylizedPixel M80 before using this test feature.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!avatarGeneratePrompt.trim()) {
-      toast({
-        title: 'Prompt required',
-        description: 'Add a character prompt before generating avatar states.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (avatarGenerateSeed.trim() && Number.isNaN(parsedAvatarSeed)) {
-      toast({
-        title: 'Invalid seed',
-        description: 'Seed must be a valid integer.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!generatedStatePreviews.idle) {
-      toast({
-        title: 'Idle required',
-        description: 'Generate idle first, then generate the remaining 3 states.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsGeneratingAvatarPack(true);
-    setAvatarGenerationStage('rest');
-    try {
-      const preview = await apiClient.generateVibeTubeAvatarRestPreview(
-        profileId,
-        buildAvatarGenerateRequest(),
-      );
-      applyGeneratedPreviewUrls(profileId, preview);
-      toast({
-        title: 'Remaining states generated',
-        description: 'talk, idle_blink, and talk_blink have been generated from idle.',
-      });
-    } catch (error) {
-      toast({
-        title: 'State generation failed',
-        description:
-          error instanceof Error ? error.message : 'Failed to generate remaining states.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGeneratingAvatarPack(false);
-      setAvatarGenerationStage(null);
     }
   }
 
@@ -1029,7 +1122,6 @@ export function ProfileForm() {
       await apiClient.applyVibeTubeAvatarPreview(profileId);
       await refreshAvatarPackPreviews(profileId);
       setHasPendingGeneratedPreview(false);
-      setIsIdlePreviewReady(false);
       setGeneratedStatePreviews({
         idle: null,
         talk: null,
@@ -1734,30 +1826,28 @@ export function ProfileForm() {
                         }}
                         disabled={isApplyingAvatarPreset}
                       >
-                        <SelectTrigger className="h-auto min-h-[120px] px-3 py-3">
+                        <SelectTrigger className="h-auto px-3 py-2">
                           {selectedAvatarPreset ? (
-                            <div className="flex w-full items-center justify-center">
-                              <div className="grid grid-cols-2 gap-2">
-                                {AVATAR_STATE_DEFS.map((def) => (
-                                  <div
-                                    key={`selected-${def.key}`}
-                                    className="h-14 w-14 overflow-hidden rounded-md border bg-muted/40"
-                                  >
-                                    <img
-                                      src={selectedAvatarPreset.states[def.key]}
-                                      alt={`${selectedAvatarPreset.name} ${def.label}`}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
+                            <div className="flex w-full items-center gap-2">
+                              {AVATAR_STATE_DEFS.map((def) => (
+                                <div
+                                  key={`selected-${def.key}`}
+                                  className="h-12 w-12 overflow-hidden rounded-md border bg-muted/40 shrink-0"
+                                >
+                                  <img
+                                    src={selectedAvatarPreset.states[def.key]}
+                                    alt={`${selectedAvatarPreset.name} ${def.label}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ))}
                               <span className="sr-only">{selectedAvatarPreset.name}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">None</span>
                           )}
                         </SelectTrigger>
-                        <SelectContent className="w-[260px]">
+                        <SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
                           <SelectItem value="none" textValue="None">
                             <span className="text-sm text-muted-foreground">None</span>
                           </SelectItem>
@@ -1769,23 +1859,21 @@ export function ProfileForm() {
                               className="py-2"
                             >
                               <div
-                                className="flex w-full items-center justify-center"
+                                className="flex w-full items-center gap-2"
                                 aria-label={`Apply ${preset.name} avatar preset`}
                               >
-                                <div className="grid grid-cols-2 gap-2">
-                                  {AVATAR_STATE_DEFS.map((def) => (
-                                    <div
-                                      key={`${preset.id}-${def.key}`}
-                                      className="h-16 w-16 overflow-hidden rounded-md border bg-muted/40"
-                                    >
-                                      <img
-                                        src={preset.states[def.key]}
-                                        alt={`${preset.name} ${def.label}`}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
+                                {AVATAR_STATE_DEFS.map((def) => (
+                                  <div
+                                    key={`${preset.id}-${def.key}`}
+                                    className="h-12 w-12 overflow-hidden rounded-md border bg-muted/40 shrink-0"
+                                  >
+                                    <img
+                                      src={preset.states[def.key]}
+                                      alt={`${preset.name} ${def.label}`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ))}
                                 <span className="sr-only">{preset.name}</span>
                               </div>
                             </SelectItem>
@@ -1796,13 +1884,14 @@ export function ProfileForm() {
                         Selecting a preset loads the round avatar and all 4 VibeTube state images.
                       </p>
                     </div>
-                    <div className="order-3 rounded-md border bg-background/60 p-3 space-y-2">
+                    {/* Generate From Prompt panel intentionally hidden — backend code preserved for future API-based generation (e.g. fal.ai) */}
+                    {false && <div className="order-3 rounded-md border bg-background/60 p-3 space-y-2">
                       <button
                         type="button"
                         className="w-full flex items-center justify-between text-xs font-medium"
                         onClick={() => setIsAvatarGenPanelOpen((v) => !v)}
                       >
-                        <span>Test Feature: Generate From Prompt (Local Model)</span>
+                        <span>Generate From Prompt (Local Model — Experimental)</span>
                         <ChevronDown
                           className={`h-4 w-4 transition-transform ${isAvatarGenPanelOpen ? 'rotate-180' : ''}`}
                         />
@@ -1925,40 +2014,16 @@ export function ProfileForm() {
                                 isApplyingGeneratedAvatarPack
                               }
                               onClick={() =>
-                                editingProfileId && generateIdlePreviewForProfile(editingProfileId)
+                                editingProfileId &&
+                                generateSpritesheetPreviewForProfile(editingProfileId)
                               }
                             >
-                              {isGeneratingAvatarPack && avatarGenerationStage === 'idle' ? (
+                              {isGeneratingAvatarPack ? (
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                               ) : (
                                 <Sparkles className="h-4 w-4 mr-2" />
                               )}
-                              {isGeneratingAvatarPack && avatarGenerationStage === 'idle'
-                                ? 'Generating Idle...'
-                                : 'Generate Idle'}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              disabled={
-                                !editingProfileId ||
-                                !isImageModelReady ||
-                                !isIdlePreviewReady ||
-                                isGeneratingAvatarPack ||
-                                isApplyingGeneratedAvatarPack
-                              }
-                              onClick={() =>
-                                editingProfileId && generateRestPreviewForProfile(editingProfileId)
-                              }
-                            >
-                              {isGeneratingAvatarPack && avatarGenerationStage === 'rest' ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Generating Rest 3...
-                                </>
-                              ) : (
-                                'Generate Rest 3'
-                              )}
+                              {isGeneratingAvatarPack ? 'Generating...' : 'Generate Sprite Sheet'}
                             </Button>
                             <Button
                               type="button"
@@ -1979,17 +2044,13 @@ export function ProfileForm() {
                           {isGeneratingAvatarPack && (
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              {avatarGenerationStage === 'idle'
-                                ? 'Generating idle preview...'
-                                : 'Generating talk/blink states from idle...'}
+                              Generating 1024×1024 sprite sheet — all 4 states in one pass...
                             </div>
                           )}
                           <p className="text-[11px] text-muted-foreground">
-                            Generates at native 512x512 for higher quality and more reliable
-                            expression edits.
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            Step 1: Generate Idle. Step 2: Generate Rest 3 from idle. Step 3: Apply.
+                            Generates all 4 states as a single 1024×1024 sprite sheet, then splits
+                            into individual files. One-shot generation produces more consistent
+                            character appearance across states.
                           </p>
                           {!editingProfileId && (
                             <p className="text-[11px] text-muted-foreground">
@@ -2037,62 +2098,194 @@ export function ProfileForm() {
                           )}
                         </>
                       )}
-                    </div>
-                    <div className="order-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {AVATAR_STATE_DEFS.map((def) => (
-                        <div
-                          key={def.key}
-                          className="rounded-md border bg-background/60 p-2 space-y-2"
+                    </div>}
+                    <div className="flex rounded-md border overflow-hidden text-xs">
+                      {(['spritesheet', 'individual'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={`flex-1 px-3 py-1.5 transition-colors ${mode !== 'spritesheet' ? 'border-l' : ''} ${
+                            avatarUploadMode === mode
+                              ? 'bg-accent text-accent-foreground font-medium'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                          onClick={() => setAvatarUploadMode(mode)}
                         >
+                          {mode === 'individual' ? '4 Individual Images' : 'Sprite Sheet'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {avatarUploadMode === 'individual' && (
+                      <div className="order-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {AVATAR_STATE_DEFS.map((def) => (
+                          <div
+                            key={def.key}
+                            className="rounded-md border bg-background/60 p-2 space-y-2"
+                          >
+                            <div className="text-xs">
+                              <p className="font-medium leading-tight">{def.label}</p>
+                              <p className="text-muted-foreground">{def.helper}</p>
+                            </div>
+                            <Input
+                              type="file"
+                              accept="image/png"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] ?? null;
+                                setSelectedAvatarPresetId(null);
+                                if (!file) {
+                                  setAvatarStateFile(def.key, null);
+                                  return;
+                                }
+                                if (file.type !== 'image/png') {
+                                  toast({
+                                    title: 'Invalid file type',
+                                    description: 'Please select a PNG image for avatar states.',
+                                    variant: 'destructive',
+                                  });
+                                  return;
+                                }
+                                if (file.size > 5 * 1024 * 1024) {
+                                  toast({
+                                    title: 'File too large',
+                                    description: 'Avatar state image must be less than 5MB.',
+                                    variant: 'destructive',
+                                  });
+                                  return;
+                                }
+                                setAvatarStateFile(def.key, file);
+                                if (def.key === 'idle') {
+                                  form.setValue('avatarFile', file, { shouldValidate: true });
+                                }
+                              }}
+                            />
+                            <div className="h-20 w-20 rounded border bg-black/40 overflow-hidden">
+                              {avatarStatePreviews[def.key] ? (
+                                <img
+                                  src={avatarStatePreviews[def.key] ?? undefined}
+                                  alt={def.label}
+                                  className="h-full w-full object-contain"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
+                                  No image
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {avatarUploadMode === 'spritesheet' && (
+                      <div className="space-y-3">
+                        {Object.values(avatarStatePreviews).some(Boolean) && (
+                          <div className="rounded-md border bg-background/60 p-3 space-y-2">
+                            <p className="text-xs font-medium">Sprite Sheet Preview</p>
+                            <div className="grid grid-cols-2 gap-0.5 max-w-[256px] mx-auto rounded border overflow-hidden bg-black/40">
+                              {([
+                                { key: 'idle', label: 'Idle' },
+                                { key: 'talk', label: 'Talk' },
+                                { key: 'idle_blink', label: 'Blink Idle' },
+                                { key: 'talk_blink', label: 'Blink Talk' },
+                              ] as const).map(({ key, label }) => (
+                                <div key={key} className="relative aspect-square bg-black/40">
+                                  {avatarStatePreviews[key] ? (
+                                    <img
+                                      src={avatarStatePreviews[key]!}
+                                      alt={label}
+                                      className="w-full h-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-[9px] text-muted-foreground">
+                                      —
+                                    </div>
+                                  )}
+                                  <span className="absolute bottom-0.5 left-1 text-[8px] text-white/50 leading-none">
+                                    {label}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="rounded-md border bg-background/60 p-3 space-y-2">
+                          <p className="text-xs font-medium">AI Prompt Guide</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Paste this into any AI image generation service. Replace the Art style
+                            and Character placeholders with your own description before generating.
+                          </p>
+                          <Textarea
+                            readOnly
+                            className="min-h-[120px] text-[11px] font-mono resize-none"
+                            value={SPRITE_SHEET_PROMPT_GUIDE}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(SPRITE_SHEET_PROMPT_GUIDE);
+                              toast({ title: 'Copied to clipboard' });
+                            }}
+                          >
+                            Copy Prompt
+                          </Button>
+                        </div>
+
+                        <div className="rounded-md border bg-background/60 p-3 space-y-2">
                           <div className="text-xs">
-                            <p className="font-medium leading-tight">{def.label}</p>
-                            <p className="text-muted-foreground">{def.helper}</p>
+                            <p className="font-medium leading-tight">
+                              Upload 1024×1024 Sprite Sheet PNG
+                            </p>
+                            <p className="text-muted-foreground">
+                              Top-left: Idle · Top-right: Talk · Bottom-left: Blink Idle ·
+                              Bottom-right: Blink Talking
+                            </p>
                           </div>
                           <Input
                             type="file"
                             accept="image/png"
+                            disabled={isSplittingSpriteSheet}
                             onChange={(e) => {
-                              const file = e.target.files?.[0] ?? null;
-                              setSelectedAvatarPresetId(null);
-                              if (!file) {
-                                setAvatarStateFile(def.key, null);
-                                return;
-                              }
-                              if (file.type !== 'image/png') {
-                                toast({
-                                  title: 'Invalid file type',
-                                  description: 'Please select a PNG image for avatar states.',
-                                  variant: 'destructive',
-                                });
-                                return;
-                              }
-                              if (file.size > 5 * 1024 * 1024) {
-                                toast({
-                                  title: 'File too large',
-                                  description: 'Avatar state image must be less than 5MB.',
-                                  variant: 'destructive',
-                                });
-                                return;
-                              }
-                              setAvatarStateFile(def.key, file);
+                              const f = e.target.files?.[0];
+                              if (f) handleSpriteSheetUpload(f);
                             }}
                           />
-                          <div className="h-20 w-20 rounded border bg-black/40 overflow-hidden">
-                            {avatarStatePreviews[def.key] ? (
-                              <img
-                                src={avatarStatePreviews[def.key] ?? undefined}
-                                alt={def.label}
-                                className="h-full w-full object-contain"
-                              />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">
-                                No image
+                          {isSplittingSpriteSheet && (
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Splitting sprite sheet…
+                            </div>
+                          )}
+                          {spriteSheetPreview && !isSplittingSpriteSheet && (
+                            <div className="space-y-1">
+                              <p className="text-[11px] text-muted-foreground">Split preview</p>
+                              <div className="grid grid-cols-4 gap-2">
+                                {AVATAR_STATE_DEFS.map((def) => (
+                                  <div key={`sp-${def.key}`} className="text-center space-y-1">
+                                    <div className="h-16 w-16 rounded border bg-black/40 overflow-hidden">
+                                      {avatarStatePreviews[def.key] ? (
+                                        <img
+                                          src={avatarStatePreviews[def.key]!}
+                                          alt={def.label}
+                                          className="h-full w-full object-contain"
+                                        />
+                                      ) : (
+                                        <div className="h-full w-full flex items-center justify-center text-[9px] text-muted-foreground">
+                                          —
+                                        </div>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">{def.key}</p>
+                                  </div>
+                                ))}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
                     <p className="order-2 text-xs text-muted-foreground">
                       {isPackLoading
                         ? 'Checking saved VibeTube pack...'

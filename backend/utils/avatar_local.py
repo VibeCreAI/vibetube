@@ -38,6 +38,20 @@ STATE_SUFFIXES = {
     "talk_blink": "same character, close eyes only, keep mouth open",
 }
 
+_SPRITESHEET_SYSTEM_PROMPT = (
+    "2x2 expression sprite sheet, same character in all 4 panels, "
+    "pixel art, transparent background, front-facing upper-body portrait, centered in each panel"
+)
+_SPRITESHEET_LAYOUT = (
+    "top-left: neutral closed mouth open eyes, "
+    "top-right: open mouth open eyes, "
+    "bottom-left: closed eyes closed mouth, "
+    "bottom-right: closed eyes open mouth"
+)
+_SPRITESHEET_NEGATIVE_EXTRA = (
+    "different characters, inconsistent character, background fill, misaligned panels, cut off character"
+)
+
 
 @dataclass
 class _Pipelines:
@@ -942,3 +956,85 @@ def generate_avatar_states_from_idle(
         raise
     except Exception as exc:
         raise AvatarGenerationError(f"Unexpected state generation error: {exc}") from exc
+
+
+def generate_avatar_spritesheet(
+    out_dir: Path,
+    user_prompt: str,
+    *,
+    model_id: str,
+    lora_id: Optional[str] = None,
+    lora_scale: float = 0.85,
+    seed: Optional[int] = None,
+    size: int = 1024,
+    output_size: int = 512,
+    palette_colors: int = 128,
+    negative_prompt: str = DEFAULT_NEGATIVE_PROMPT,
+    num_inference_steps: int = 24,
+    guidance_scale: float = 7.0,
+) -> int:
+    """Generate all 4 avatar states as a single 1024x1024 sprite sheet, then split into files."""
+    if not user_prompt.strip():
+        raise AvatarGenerationError("Prompt is required.")
+    if size < 128 or size > 1024:
+        raise AvatarGenerationError("size must be between 128 and 1024.")
+    if size % 2 != 0:
+        raise AvatarGenerationError("size must be even.")
+    if output_size < 64 or output_size > 2048:
+        raise AvatarGenerationError("output_size must be between 64 and 2048.")
+    if palette_colors < 2 or palette_colors > 256:
+        raise AvatarGenerationError("palette_colors must be between 2 and 256.")
+
+    try:
+        pipelines = _get_pipelines(model_id=model_id, lora_id=lora_id, lora_scale=lora_scale)
+        torch = pipelines.torch
+        device = pipelines.device
+        base_seed = seed if seed is not None else random.randint(1, 2_147_483_000)
+
+        user = _limit_words(user_prompt, 18)
+        prompt = f"{user}, {_SPRITESHEET_SYSTEM_PROMPT}, {_SPRITESHEET_LAYOUT}"
+        neg = f"{_limit_words(negative_prompt or DEFAULT_NEGATIVE_PROMPT, 30)}, {_SPRITESHEET_NEGATIVE_EXTRA}"
+
+        gen = torch.Generator(device=device).manual_seed(base_seed)
+        sheet_img = _run_pipeline_image(
+            pipelines.txt2img,
+            prompt=prompt,
+            negative_prompt=neg,
+            width=size,
+            height=size,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            generator=gen,
+        )
+        sheet_img = _to_pil_png(sheet_img)
+
+        half = size // 2
+        quadrants = {
+            "idle":       (0,    0,    half, half),
+            "talk":       (half, 0,    size, half),
+            "idle_blink": (0,    half, half, size),
+            "talk_blink": (half, half, size, size),
+        }
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        saved = 0
+        for state, box in quadrants.items():
+            quadrant = sheet_img.crop(box)
+            _postprocess_and_save(
+                quadrant,
+                out_dir / f"{state}.png",
+                generation_size=half,
+                pixel_size=half,
+                output_size=output_size,
+                palette_colors=palette_colors,
+            )
+            saved += 1
+
+        if saved == 0:
+            raise AvatarGenerationError("All quadrants were empty. Try a different prompt or seed.")
+
+        return base_seed
+    except AvatarGenerationError:
+        raise
+    except Exception as exc:
+        raise AvatarGenerationError(f"Unexpected spritesheet generation error: {exc}") from exc
